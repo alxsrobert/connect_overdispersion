@@ -14,8 +14,8 @@ Impact of distribution of contact by ethnicity on infectious disease dynamics in
   * Variable of interest: ethnicity – rural status (impact on overdispersion AND mean). Five levels: black – urban, Asian – urban, mixed – urban, white – urban, white – rural, non white – rural.
   * Control variables: age group, income, gender, weekday, household size.
 * Simulation of distribution of contacts in the population
-  * Generate a simulated population with a distribution of income, age, gender, household size and ethnicity following the UK population (or the contact data).
-  * Simulate the number of contact for each individual in the simulated population using the parameters from the regression analysis.
+  *	Generate synthetic populations (distribution of income, age, gender, and ethnicity following the UK population).
+  * Simulate the number of contact for each individual in the synthetic population using the parameters from the regression analysis.
   * Compare the distribution of contact in each ethnicity.
 * Transmission model and stochastic simulations
   * Use the outputs of the regression analysis to implement a compartmental model stratified by age, ethnicity, and number of contacts.
