@@ -85,7 +85,7 @@ figure_parameter_model <- function(list_regression, which_model){
     geom_point(aes(y = estimate), position = position_dodge(0.5)) + 
     geom_line(lty = 2, col = "black", y = 1) +
     facet_wrap(.~group, scales = "free", ncol = 2) + 
-    theme_bw() + ylim(c(.5, 2)) + 
+    theme_bw() + ylim(c(.3, 2)) + 
     xlab("Coefficient") + ylab("Value")
   
 }
