@@ -19,11 +19,14 @@ figure_compare_models <- function(list_regression){
 
 #' Show all parameters from one model (including reference levels)
 #'
-#' @param list_regression 
-#' @param which_model 
+#' @param list_regression list of regression object
+#' @param which_model Model to plot
+#' @param filter_group Group(s) to plot (if set to NULL, all groups are plotted),
+#' set of possible groups: "intercept", "age", "gender", "ethnicity_rural",
+#' "day_of_the_week", "income","employment", "household", "shape".
 #'
 #' @return ggplot object
-figure_parameter_model <- function(list_regression, which_model){
+figure_parameter_model <- function(list_regression, which_model, filter_group = NULL){
   # Create a tibble containing all coefficient estimates and CIs for all models
   dt_coef <- clean_list_regression_output(list_regression)
   
@@ -70,12 +73,14 @@ figure_parameter_model <- function(list_regression, which_model){
   dt_coef$term <- relevel(dt_coef$term, ref = "5-9")
   dt_coef$term <- relevel(dt_coef$term, ref = "0-4")
   
+  if(is.null(filter_group)) filter_group <- unique(dt_coef$group)
   # Generate figure after removing Intercept values
   dt_coef |>
     filter(model == which_model &
              !group %in% "intercept" & 
              !term %in% "(Intercept)" & 
              !term %in% c("Other", "ethOther", "shape_ethOther")) |> 
+    filter(group %in% filter_group) |>
     mutate(group = case_when(
       group %in% c("gender", "day_of_the_week", "urban_rural") ~ "others",
       !group %in% c("gender", "day_of_the_week", "urban_rural") ~ group),
@@ -87,7 +92,8 @@ figure_parameter_model <- function(list_regression, which_model){
     geom_errorbar(width = 0.4, position = position_dodge(0.5)) +
     geom_point(aes(y = estimate), position = position_dodge(0.5)) + 
     geom_line(lty = 2, col = "black", y = 1) +
-    facet_wrap(.~group, scales = "free", ncol = 2) + 
+    facet_wrap(.~group, scales = "free", 
+               ncol = ifelse(is.null(filter_group), 2, 1)) + 
     theme_bw() + ylim(c(.3, 2)) + 
     xlab("Coefficient") + ylab("Value")
   
