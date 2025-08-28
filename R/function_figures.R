@@ -78,7 +78,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
     mutate(group = case_when(
       group %in% c("gender", "day_of_the_week", "urban_rural") ~ "others",
       !group %in% c("gender", "day_of_the_week", "urban_rural") ~ group),
-      group = factor(group, levels = c("age", "ethnicity", "ethnicity_rural", 
+      group = factor(group, levels = c("age", "ethnicity", "ethnicity_rural", "employment",
                                        "income", "shape", "household", "others"))
     )
   
