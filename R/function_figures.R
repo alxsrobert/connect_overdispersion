@@ -37,6 +37,9 @@ figure_parameter_model <- function(list_regression, which_model){
       model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "ethnicity_rural"),
     cbind.data.frame(
+      model = which_model, term = "Employed", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "employment"),
+    cbind.data.frame(
       model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "shape"),
     cbind.data.frame(
