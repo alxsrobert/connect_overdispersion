@@ -27,6 +27,14 @@ figure_compare_models <- function(list_regression){
 #'
 #' @return ggplot object
 figure_parameter_model <- function(list_regression, which_model, filter_group = NULL){
+  
+  if(!is.null(filter_group)){
+    if(!all(is.element(filter_group, 
+                       c("intercept", "age", "ethnicity_rural", "income",
+                         "employment", "household", "shape", "others"))))
+      stop("If filter_group is not null, the only possible values are: \n'intercept', 'age', 'ethnicity_rural', 'income','employment', 'household', 'shape', 'others'")
+  }
+  
   # Create a tibble containing all coefficient estimates and CIs for all models
   dt_coef <- clean_list_regression_output(list_regression)
   lev_ref <- 
