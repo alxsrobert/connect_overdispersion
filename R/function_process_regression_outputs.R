@@ -46,6 +46,7 @@ clean_list_regression_output <- function(list_regression){
         (grepl("ethnicity_rural", term) & !grepl("shape", term)) ~ "ethnicity_rural",
         grepl("p_urban_rural", term) ~ "urban_rural",
         grepl("day_week", term) ~ "day_of_the_week",
+        grepl("employ", term) ~ "employment",
         grepl("p_income", term) ~ "income",
         grepl("household", term) ~ "household"),
       term = case_when(
@@ -53,9 +54,10 @@ clean_list_regression_output <- function(list_regression){
         grepl("p_gender", term) ~ gsub(pattern = "p_gender", "", term),
         grepl("p_urban_rural", term) ~ gsub(pattern = "p_urban_rural", "", term),
         grepl("day_week", term) ~ gsub(pattern = "day_week", "", term),
-        grepl("p_income", term) ~ gsub(pattern = "p_income", "", gsub("M", "-", term)),
+        grepl("p_income", term) ~ gsub(pattern = "p_income|p_income_", "", gsub("M", "_", term)),
         grepl("cat_household", term) ~ gsub(pattern = "cat_household_members", "hh_size: ", term),
         grepl("household", term) ~ "household_linear",
+        grepl("employ", term) ~ gsub(pattern = "employ_", "", term),
         grepl("ethnicity_rural", term) ~ gsub(pattern = "ethnicity_rural", "", term),
         grepl("Intercept", term) ~ term),
       term = gsub(pattern = "shape_", "", term)
@@ -68,10 +70,13 @@ clean_list_regression_output <- function(list_regression){
   df_all_results$term <- relevel(df_all_results$term, ref = "5-9")
   df_all_results$term <- relevel(df_all_results$term, ref = "Lessthan20000")
   df_all_results$term <- relevel(df_all_results$term, ref = "0-4")
-  df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Morethan4")
-  df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Four")
-  df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Three")
-  df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Two")
+  
+  if(any(df_all_results$term == "hh_size: Morethan4", na.rm = TRUE)){
+    df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Morethan4")
+    df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Four")
+    df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Three")
+    df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Two")
+  }
   
   return(df_all_results)
 }
