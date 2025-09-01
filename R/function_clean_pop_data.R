@@ -25,33 +25,33 @@ clean_hh_size <- function(age_groups, region = "England"){
     mutate(
       age_min = case_when(
         ## If age_full is XXX and under => set age_min to 0
-        grepl("and under", age_full) ~ 0,
+        grepl("and under", age_full) ~ "0",
         ## If age_full is "XXX and over" => set age_min to XXX (i.e. remove all
         ## non numeric characters)
-        grepl("and over", age_full) ~ 
-          gsub("[a-z]", "", tolower(age_full)) |> as.numeric(),
+        grepl("and over", age_full) ~ gsub("[a-z]", "", tolower(age_full)),
         ## If age_full is "Aged XXX to YYY years" => set age_min to XXX, so 
         ## remove "Aged " and select everything before the space
         grepl(" to ", age_full) ~ gsub("Aged ", "", age_full) |> 
-          gsub(pattern = "[ ].*", replacement = "") |> as.numeric(),
+          gsub(pattern = "[ ].*", replacement = ""),
         ## Otherwise, then age full follows the format "Aged XXX", and age_min
         ## is XXX
-        .default = gsub("[^0-9.-]", "", age_full) |> as.numeric()),
+        .default = gsub("[^0-9.-]", "", age_full)),
       age_max = case_when(
         ## If age_full is XXX and over => set age_max to 93
-        grepl("and over", age_full) ~ 93,
+        grepl("and over", age_full) ~ "93",
         ## If age_full is XXX and under => set age_max to XXX (i.e. remove all
         ## non numeric characters)
-        grepl("and under", age_full) ~ 
-          gsub("[a-z]", "", tolower(age_full)) |> as.numeric(),
+        grepl("and under", age_full) ~ gsub("[a-z]", "", tolower(age_full)),
         ## If age_full is "Aged XXX to YYY years" => set age_max to YYY, so 
         ## remove " years" and select everything after "to "
         grepl(" to ", age_full) ~ gsub(" years", "", age_full) |> 
-          gsub(pattern = ".*to ", replacement = "") |> as.numeric(),
+          gsub(pattern = ".*to ", replacement = ""),
         ## Otherwise, then age full follows the format "Aged XXX", and age_max
         ## is XXX
-        .default = as.numeric(gsub("[^0-9.-]", "", age_full)))
-    )
+        .default = gsub("[^0-9.-]", "", age_full))
+    ) |> 
+    mutate(age_min = as.numeric(age_min), 
+           age_max = as.numeric(age_max))
   
   ## Mach age_min to age_groups, the age groups in the model
   age_match <- character()
@@ -85,7 +85,7 @@ clean_hh_size <- function(age_groups, region = "England"){
       .default = as.character(hh_size))) |> 
     ## Sum n over the new values of hh_size
     group_by(hh_size, age_group, ethnic_group) |> 
-    summarise(n = sum(n)) |> 
+    summarise(n = sum(n), .groups = "drop") |> 
     ## Compute the distribution of household size by age and ethnic group 
     group_by(age_group, ethnic_group) |> 
     mutate(tot = sum(n), prop = n /sum(n))
@@ -128,7 +128,7 @@ clean_income <- function(){
       min >= 100000 ~ "p_income_Over100000"
     )) |> 
     group_by(income_group, `Ethnicity of household reference person`, Denominator) |> 
-    summarise(n = sum(n)) |> 
+    summarise(n = sum(n), .groups = "drop") |> 
     ## Compute the proportion
     mutate(prop = n / Denominator) |> 
     group_by()
@@ -136,7 +136,7 @@ clean_income <- function(){
   
   eth_income <- eth_income |> select(income, ethnicity, prop)
   
-  return(eth_income)  
+  return(eth_income)
 }
 
 ## dataset from https://www.ons.gov.uk/datasets/create
@@ -219,33 +219,33 @@ clean_employ <- function(age_groups, region = "England"){
     mutate(
       age_min = case_when(
         ## If age_full is XXX and under => set age_min to 0
-        grepl("and under", age_full) ~ 0,
+        grepl("and under", age_full) ~ "0",
         ## If age_full is "XXX and over" => set age_min to XXX (i.e. remove all
         ## non numeric characters)
-        grepl("and over", age_full) ~ 
-          gsub("[a-z]", "", tolower(age_full)) |> as.numeric(),
+        grepl("and over", age_full) ~ gsub("[a-z]", "", tolower(age_full)),
         ## If age_full is "Aged XXX to YYY years" => set age_min to XXX, so 
         ## remove "Aged " and select everything before the space
         grepl(" to ", age_full) ~ gsub("Aged ", "", age_full) |> 
-          gsub(pattern = "[ ].*", replacement = "") |> as.numeric(),
+          gsub(pattern = "[ ].*", replacement = ""),
         ## Otherwise, then age full follows the format "Aged XXX", and age_min
         ## is XXX
-        .default = gsub("[^0-9.-]", "", age_full) |> as.numeric()),
+        .default = gsub("[^0-9.-]", "", age_full)),
       age_max = case_when(
         ## If age_full is XXX and over => set age_max to 93
-        grepl("and over", age_full) ~ 93,
+        grepl("and over", age_full) ~ "93",
         ## If age_full is XXX and under => set age_max to XXX (i.e. remove all
         ## non numeric characters)
-        grepl("and under", age_full) ~ 
-          gsub("[a-z]", "", tolower(age_full)) |> as.numeric(),
+        grepl("and under", age_full) ~ gsub("[a-z]", "", tolower(age_full)),
         ## If age_full is "Aged XXX to YYY years" => set age_max to YYY, so 
         ## remove " years" and select everything after "to "
         grepl(" to ", age_full) ~ gsub(" years", "", age_full) |> 
-          gsub(pattern = ".*to ", replacement = "") |> as.numeric(),
+          gsub(pattern = ".*to ", replacement = ""),
         ## Otherwise, then age full follows the format "Aged XXX", and age_max
         ## is XXX
-        .default = as.numeric(gsub("[^0-9.-]", "", age_full)))
+        .default = gsub("[^0-9.-]", "", age_full))
     ) |> 
+    mutate(age_min = as.numeric(age_min), 
+           age_max = as.numeric(age_max)) |>
     ## Below 18, all individuals are considered as children
     filter(age_min >= 18)
   
@@ -276,7 +276,7 @@ clean_employ <- function(age_groups, region = "England"){
     )) |> 
     ## Sum n over the new values of econ
     group_by(econ, age_group, sex, ethnic_group) |> 
-    summarise(n = sum(n)) |> 
+    summarise(n = sum(n), .groups = "drop") |> 
     ## Compute the distribution of econ by age, gender, and ethnic group 
     group_by(age_group, sex, ethnic_group) |> 
     mutate(tot = sum(n), prop = n /sum(n))
