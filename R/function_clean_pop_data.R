@@ -286,3 +286,78 @@ clean_employ <- function(age_groups, region = "England"){
   return(age_eth_employ)
 }
 
+## Import population data
+## from https://www.ons.gov.uk/peoplepopulationandcommunity/culturalidentity/ethnicity/datasets/ethnicgroupbyageandsexinenglandandwales
+## (source: https://www.ons.gov.uk/releases/ethnicgroupbyageandsexenglandandwalescensus2021)
+clean_age_eth <- function(age_groups, region = "England"){
+  ## Import the 5th sheet of the xlsx dataset
+  pop_by_geography <-
+    import("data/ethnicgroupagesex11.xlsx", which = 5, 
+           .name_repair = "unique_quiet")
+  
+  ## Fix format of pop_by_geography
+  # The column names is on the third row
+  colnames(pop_by_geography) <- pop_by_geography[3,]
+  # Remove first three rows
+  pop_by_geography <- pop_by_geography[-c(1,2,3),]
+  
+  # Low counts (below 10 individuals) are set to "c", randomly draw each "c" 
+  # entry as a numeric value between 0 and 9
+  pop_by_geography[pop_by_geography == "c"] <- 
+    sample(x = seq(0, 9), size = sum(pop_by_geography == "c"), replace = TRUE)
+  # Reformat column names: remove space after ":", then remove everything prior
+  # to the colon, then replace space by "_", remove commas, and move everything 
+  # to lower case
+  colnames(pop_by_geography) <- gsub(": ", ":", colnames(pop_by_geography))
+  colnames(pop_by_geography) <- gsub(".*[:]", "", colnames(pop_by_geography))
+  colnames(pop_by_geography) <- gsub(" ", "_", colnames(pop_by_geography))
+  colnames(pop_by_geography) <- gsub(",", "", colnames(pop_by_geography))
+  colnames(pop_by_geography) <- tolower(colnames(pop_by_geography))
+  
+  ## Set all columns except geography code, name and age to numeric  
+  pop_by_geography[, -c(1,2,3)] <- as.numeric(unlist(c(pop_by_geography[, -c(1,2,3)])))
+  
+  ## Compute the levels of age_groups to group the individual age from pop_by_geography
+  levels_age <- c(-1, gsub(".*[-]", "", age_groups) |> as.numeric())
+  levels_age[which.max(levels_age)] <- 101
+  
+  ## Clean the data:
+  pop_data_ethnicity <-
+    pop_by_geography |> 
+    # Select only the relevant region
+    filter(geography_name == region) |> 
+    # Set ages over 100 to 100, and switch the column to numeric
+    mutate(
+      age = case_when(age == "100 or over" ~ "100", .default = age),
+      age = as.numeric(as.character(age)), 
+      # Group ages into the levels from age_groups
+      age_group = cut(age, levels_age, age_groups, right = TRUE),
+      # Group all asian groups
+      pop_asian = bangladeshi + pakistani + indian + chinese + other_asian,
+      # Group all black groups
+      pop_black = caribbean + african + other_black, 
+      # Group all mixed groups
+      pop_mixed = white_and_asian + white_and_black_african + 
+        white_and_black_caribbean + other_mixed_or_multiple_ethnic_groups, 
+      # Group all white groups
+      pop_white = english_welsh_scottish_northern_irish_or_british + 
+        gypsy_or_irish_traveller + irish + roma + other_white 
+    ) |> 
+    select(geography_name, age_group, pop_asian, pop_black, pop_mixed, pop_white) |> 
+    # Group all rows at the same level of age_group together
+    group_by(age_group) |>
+    summarise(nb_asian = sum(pop_asian), nb_black = sum(pop_black),
+              nb_mixed = sum(pop_mixed), nb_white = sum(pop_white),
+              nb_all = sum(pop_asian + pop_mixed + pop_black + pop_white)
+    ) |> 
+    group_by() |>
+    select(age_group, nb_all, nb_asian, nb_black, nb_mixed, nb_white) |> 
+    # pivot to a long format
+    pivot_longer(cols = c(nb_all, nb_asian, nb_black, nb_mixed, nb_white),
+                 names_to = "ethnicity", values_to = "nb", names_prefix = "nb_") |> 
+    # compute the proportion: the distribution of age groups by ethnicity
+    group_by(ethnicity) |> 
+    mutate(prop = nb / sum(nb))
+  
+  return(pop_data_ethnicity)
+}
