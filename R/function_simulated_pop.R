@@ -1,3 +1,75 @@
+#' Simulate the number of contacts per individual in a simulated population
+#'
+#' @param list_with_inc List of regression outputs (saved in script_regression.R)
+#' @param tot_size Overall size of the population
+#' @param n_draws Number of draws from the regression results used to simulate the number of contacts
+#' @param which_model Which model from list_with_inc should be used to simulate
+#' the number of contacts
+#' @param anon logical: whether to use anonymised data
+#' @param seed 
+#' @param which_type What type of population is used to generate the feature of 
+#' each individual ("at baseline": only one level of income, gender, age, 
+#' household size, and employment) is used; "population": the age, gender, 
+#' household size, income, and employment distribution in the simulated 
+#' population corresponds to the overall distribution in the UK by age;
+#' "ethnicity-stratified\n population": the distribution of age, gender, 
+#' household size, income, and employment in the simulated population 
+#' corresponds to the distribution *by ethnicity* and age in the UK.
+#'
+#' @return Data frame containing the number of contact per individual
+#' @export
+#'
+#' @examples
+create_contact_in_pop <- function(
+    list_with_inc, tot_size, n_draws, anon, which_model = "full_od_cathh", 
+    seed = NULL,
+    which_type = c("at baseline", "population", 
+                   "ethnicity-stratified\n population")){
+  if(!is.null(seed)) set.seed(seed)
+
+  # For each individual, we use 5 random draws from the regression outputs,
+  # the size of the simulated population is therefore tot_size / 5
+  pop_size <- round(tot_size / 5)
+  # Compute the total number of draws in the regression analysis
+  summary_model <- summary(list_with_inc[[which_model]])
+  tot_draws <- (summary_model$iter - summary_model$warmup) * summary_model$chains
+  
+  # Generate synthetic population
+  df_indiv <- create_pop(list_with_inc, tot_size, n_draws, which_model, anon, 
+                         seed, which_type)
+  
+  # Get all variables used in the model formula
+  vars_in_model <- all.vars(formula(list_with_inc[[which_model]])$formula)
+  # Variables in your new data
+  vars_in_newdata <- names(df_indiv)
+  # Find missing variables
+  missing_vars <- setdiff(vars_in_model, vars_in_newdata)
+  # Create data2 list with zeroes for missing variables
+  data2_list <- setNames(as.list(rep(0, length(missing_vars))), missing_vars)
+  df_indiv <- cbind.data.frame(df_indiv, data2_list)
+  
+  df_indiv_with_contact <- 
+    ## Predict number of contacts for each row
+    predict(list_with_inc[[which_model]], newdata = df_indiv, 
+            summary = FALSE, draw_ids = seq(1, tot_draws, tot_draws/n_draws)
+    ) |> 
+    t() |> 
+    as.data.frame() |> 
+    ## Combine random draws with the combination of features
+    cbind(df_indiv) |> 
+    ## Switch to long format
+    pivot_longer(cols = starts_with("V"), values_to = "contact", names_to = NULL) |> 
+    group_by(id_indiv) |> 
+    ## Add individual id to each draw
+    mutate(id = sample(x = n(), size = n())) |> 
+    ## Only select five of the draws, to end up with pop_size individuals
+    filter(id <= 5) |> 
+    mutate(type = which_type) |> 
+    group_by()
+  
+  return(df_indiv_with_contact)
+}
+
 #' Create synthetic population
 #'
 #' @param list_with_inc List of regression outputs (saved in script_regression.R)
