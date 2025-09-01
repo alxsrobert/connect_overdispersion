@@ -139,3 +139,150 @@ clean_income <- function(){
   return(eth_income)  
 }
 
+## dataset from https://www.ons.gov.uk/datasets/create
+## See data/age_ethnicity_economic.txt files for details on how the 
+## file was generated
+clean_employ <- function(age_groups, region = "England"){
+  ## Employ employment level at a national level (will be used to compute the 
+  ## gender distribution if region is not "England")
+  national_level <- import("data/age_ethnicity_economic.csv")
+  
+  ## rename the columns
+  colnames(national_level) <- c(
+    "code", "region", "age", "age_full", "sex_code", "sex", "ethnic_code",
+    "ethnic_group", "econ_code", "econ", "n")
+  
+  ## Import the dataset
+  if(region == "England"){
+    age_eth_employ_ref <- national_level
+  } else if(region == "London"){
+    age_eth_employ_ref <- rbind.data.frame(
+      cbind.data.frame(import("data/age_ethnicity_economic_london.csv"),
+                       "Sex (2 categories)" = 1,  
+                       "Code Sex (2 categories)" = "Female"),
+      cbind.data.frame(import("data/age_ethnicity_economic_london.csv"),
+                       "Sex (2 categories)" = 2,
+                       "Code Sex (2 categories)" = "Male")
+    )
+    colnames(age_eth_employ_ref) <- c(
+      "code", "region", "age", "age_full", "ethnic_code", "ethnic_group", 
+      "econ_code", "econ", "n", "sex_code", "sex")
+
+    ## We could not import the gender distribution in the raw data (too many 
+    ## variables at a local level), so we use the gender distribution from the 
+    ## national data to infer the local gender distribution
+    age_eth_employ_ref <- 
+      age_eth_employ_ref |> 
+      left_join(national_level |> 
+                  group_by(age, age_full, ethnic_group, econ) |> 
+                  mutate(prop = n / sum(n)) |> 
+                  select(-region, -code, -n)) |> 
+      mutate(prop = case_when(is.na(prop) ~ 0, .default = prop),
+             n = round(prop * n)) |> 
+      select(-prop)
+    
+  } else if(region %in% c("Birmingham", "Leicester", "Liverpool", "Manchester",
+                          "York")){
+    age_eth_employ_ref <- 
+      rbind.data.frame(
+        cbind.data.frame(import("data/age_ethnicity_economic_la.csv"),
+                         "Sex (2 categories)" = 1,  
+                         "Code Sex (2 categories)" = "Female"),
+        cbind.data.frame(import("data/age_ethnicity_economic_la.csv"),
+                         "Sex (2 categories)" = 2,
+                         "Code Sex (2 categories)" = "Male")
+      )
+    colnames(age_eth_employ_ref) <- c(
+      "code", "region", "age", "age_full", "ethnic_code", "ethnic_group", 
+      "econ_code", "econ", "n", "sex_code", "sex")
+
+    ## We could not import the gender distribution in the raw data (too many 
+    ## variables at a local level), so we use the gender distribution from the 
+    ## national data to infer the local gender distribution
+    age_eth_employ_ref <- 
+      filter(region == region) |> 
+      left_join(national_level |> 
+                  group_by(age, age_full, ethnic_group, econ) |> 
+                  mutate(prop = n / sum(n)) |> 
+                  select(-region, -code, -n)) |> 
+      mutate(prop = case_when(is.na(prop) ~ 0, .default = prop),
+             n = round(prop * n)) |> 
+      select(-prop)
+    
+  } else 
+    stop("region must be England, London, Birmingham, Leicester, Liverpool,
+         Manchester, or York")
+  
+  ## Use age_full to create age_min and age_max, the boundaries of the age groups
+  age_eth_employ <- 
+    age_eth_employ_ref |> 
+    mutate(
+      age_min = case_when(
+        ## If age_full is XXX and under => set age_min to 0
+        grepl("and under", age_full) ~ 0,
+        ## If age_full is "XXX and over" => set age_min to XXX (i.e. remove all
+        ## non numeric characters)
+        grepl("and over", age_full) ~ 
+          gsub("[a-z]", "", tolower(age_full)) |> as.numeric(),
+        ## If age_full is "Aged XXX to YYY years" => set age_min to XXX, so 
+        ## remove "Aged " and select everything before the space
+        grepl(" to ", age_full) ~ gsub("Aged ", "", age_full) |> 
+          gsub(pattern = "[ ].*", replacement = "") |> as.numeric(),
+        ## Otherwise, then age full follows the format "Aged XXX", and age_min
+        ## is XXX
+        .default = gsub("[^0-9.-]", "", age_full) |> as.numeric()),
+      age_max = case_when(
+        ## If age_full is XXX and over => set age_max to 93
+        grepl("and over", age_full) ~ 93,
+        ## If age_full is XXX and under => set age_max to XXX (i.e. remove all
+        ## non numeric characters)
+        grepl("and under", age_full) ~ 
+          gsub("[a-z]", "", tolower(age_full)) |> as.numeric(),
+        ## If age_full is "Aged XXX to YYY years" => set age_max to YYY, so 
+        ## remove " years" and select everything after "to "
+        grepl(" to ", age_full) ~ gsub(" years", "", age_full) |> 
+          gsub(pattern = ".*to ", replacement = "") |> as.numeric(),
+        ## Otherwise, then age full follows the format "Aged XXX", and age_max
+        ## is XXX
+        .default = as.numeric(gsub("[^0-9.-]", "", age_full)))
+    ) |> 
+    ## Below 18, all individuals are considered as children
+    filter(age_min >= 18)
+  
+  ## Mach age_min to age_groups, the age groups in the model
+  age_match <- character()
+  age_group_adult <- age_groups[as.numeric(gsub(".*[-]", "", age_groups)) >= 18]
+
+  for(i in seq_along(age_eth_employ$age_min)){
+    ## For each value of age_min in age_eth_hh_ref, set age_match to the highest
+    ## value of age_groups with the lower bound below than age_min[i]
+    age_match[i] <- 
+      age_group_adult[
+        (substr(age_group_adult, 1, 2) <= as.numeric(age_eth_employ$age_min[i])) |> 
+          which() |> max()
+      ]
+  }
+  
+  ## Add age_match to age_eth_hh_ref
+  age_eth_employ$age_group <- age_match
+  
+  age_eth_employ <- 
+    age_eth_employ |> 
+    ## change econ to match the levels in the model
+    mutate(econ = case_when(
+      grepl("In employment", econ) ~ "employed",
+      grepl("Unemployed", econ) ~ "unemployed",
+      .default = gsub("Economically inactive: ", "", econ)
+    )) |> 
+    ## Sum n over the new values of econ
+    group_by(econ, age_group, sex, ethnic_group) |> 
+    summarise(n = sum(n)) |> 
+    ## Compute the distribution of econ by age, gender, and ethnic group 
+    group_by(age_group, sex, ethnic_group) |> 
+    mutate(tot = sum(n), prop = n /sum(n))
+  
+  age_eth_employ$prop[is.nan(age_eth_employ$prop)] <- 0
+  
+  return(age_eth_employ)
+}
+
