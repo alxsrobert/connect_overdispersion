@@ -1,6 +1,8 @@
+library(rio)
 library(tidyverse)
 library(broom.mixed)
 library(brms)
 source("R/function_data_cleaning.R")
+source("R/function_clean_pop_data.R")
 source("R/function_process_regression_outputs.R")
 source("R/function_figures.R")
