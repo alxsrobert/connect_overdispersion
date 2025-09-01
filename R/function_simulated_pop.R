@@ -5,7 +5,6 @@
 #' @param n_draws Number of draws from the regression results used to simulate the number of contacts
 #' @param which_model Which model from list_with_inc should be used to simulate
 #' the number of contacts
-#' @param anon logical: whether to use anonymised data
 #' @param seed 
 #' @param which_type What type of population is used to generate the feature of 
 #' each individual ("at baseline": only one level of income, gender, age, 
@@ -21,7 +20,7 @@
 #'
 #' @examples
 create_contact_in_pop <- function(
-    list_with_inc, tot_size, n_draws, anon, which_model = "full_od_cathh", 
+    list_with_inc, tot_size, n_draws, which_model = "full_od_cathh", 
     seed = NULL,
     which_type = c("at baseline", "population", 
                    "ethnicity-stratified\n population")){
@@ -35,8 +34,8 @@ create_contact_in_pop <- function(
   tot_draws <- (summary_model$iter - summary_model$warmup) * summary_model$chains
   
   # Generate synthetic population
-  df_indiv <- create_pop(list_with_inc, tot_size, n_draws, which_model, anon, 
-                         seed, which_type)
+  df_indiv <- create_pop(list_with_inc, tot_size, n_draws, which_model, seed, 
+                         which_type)
   
   # Get all variables used in the model formula
   vars_in_model <- all.vars(formula(list_with_inc[[which_model]])$formula)
@@ -77,7 +76,6 @@ create_contact_in_pop <- function(
 #' @param n_draws Number of draws from the regression results used to simulate the number of contacts
 #' @param which_model Which model from list_with_inc should be used to simulate
 #' the number of contacts
-#' @param anon logical: whether to use anonymised data
 #' @param seed 
 #' @param which_type What type of population is used to generate the feature of 
 #' each individual ("at baseline": only one level of income, gender, age, 
@@ -94,7 +92,7 @@ create_contact_in_pop <- function(
 #'
 #' @examples
 create_pop <- function(
-    list_with_inc, tot_size, n_draws, which_model, anon, seed, which_type){
+    list_with_inc, tot_size, n_draws, which_model, seed, which_type){
   ### First, we want to import the distribution of household size, income, 
   ### employment status, age group and ethnicity in the population.
   ## We use the age groups from the regression model, and order them in 
