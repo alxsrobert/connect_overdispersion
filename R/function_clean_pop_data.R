@@ -93,3 +93,49 @@ clean_hh_size <- function(age_groups, region = "England"){
 
   return(age_eth_hh)
 }
+
+## household income by ethnicity, 
+## from https://www.ethnicity-facts-figures.service.gov.uk/work-pay-and-benefits/pay-and-income/household-income/latest/#by-ethnicity
+## (download the data here: https://www.ethnicity-facts-figures.service.gov.uk/work-pay-and-benefits/pay-and-income/household-income/latest/downloads/household-income-2021.csv)
+clean_income <- function(){
+  ## The data is only available at a national level, so we assume the distribution
+  ## by ethnicity does not change by area
+  eth_income_ref <- import("data/income_by_ethnicity.csv")
+  
+  eth_income <-
+    eth_income_ref |> 
+    ## Only keep the entries corresponding to the latest dates
+    filter(substr(Time, 1, 4) == max(as.numeric(substr(Time, 1, 4)))) |> 
+    ## Compute the number of households by multiplying value by the denominator
+    mutate(n = as.numeric(Value) * Denominator / 100,
+           ## re-format income, by removing all lowercase letters (and only keep 
+           ## numbers and GBP), so income looks like GBPXXXGBPYYY
+           income = gsub("[a-zL, ]", "", `Income bracket`),
+           ## Remove the first three characters, so income looks like XXXGBPYYY
+           income = sub("...", "", income),
+           ## The lower income boundary is what comes before "GBP" in income
+           ## Multiplied by 50 to move from weekly values to annual values
+           min = as.numeric(gsub("GBP.*", "", income)) * 50,
+           ## The upper income boundary is what comes after "GBP" in income
+           ## Multiplied by 50 to move from weekly values to annual values
+           max = as.numeric(gsub(".*GBP", "", income)) * 50) |> 
+    ## rename income_group to match the coefficients from the model
+    mutate(income_group = case_when(
+      min < 20000 ~ "p_income_Lessthan20000",
+      min < 40000 ~ "p_income_20000_39999",
+      min < 60000 ~ "p_income_40000_59999",
+      min < 100000 ~ "p_income_60000_100000",
+      min >= 100000 ~ "p_income_Over100000"
+    )) |> 
+    group_by(income_group, `Ethnicity of household reference person`, Denominator) |> 
+    summarise(n = sum(n)) |> 
+    ## Compute the proportion
+    mutate(prop = n / Denominator) |> 
+    group_by()
+  colnames(eth_income) <- c("income", "ethnicity", "denominator", "n", "prop")
+  
+  eth_income <- eth_income |> select(income, ethnicity, prop)
+  
+  return(eth_income)  
+}
+
