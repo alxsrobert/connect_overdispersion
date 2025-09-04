@@ -109,3 +109,95 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
   
 }
 
+#' Barplot showing the distribution of the number of contacts per individual in
+#' synthetic populations 
+#'
+#' @param prediction_populations dataframe where each row corresponds to an 
+#' individual in a synthetic population, and three columns: "ethnicity_rural",
+#' the ethnicity of an individual, "contact" the simulated number of contact of that 
+#' individual, and "type" the type of simulation process that was used to simulate
+#' the number of contacts
+#' @param breaks The breaks used to separate the total number of contacts into 
+#' categories
+#' @param label_breaks the level of each category of number of contacts  
+#' @param cols Vector defining the colour for each ethnicity
+#' 
+figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks, cols){
+  # Check if the population size is the same in each type, otherwise generate an
+  # error
+  if(!(table(paste0(prediction_populations$ethnicity_rural, 
+                    prediction_populations$type)) |> unique() |> length()) == 1)
+    stop("All type should have the same number of individuals per ethnicity")
+  
+  # Extract the population size
+  pop_size_i <- 
+    table(paste0(prediction_populations$ethnicity_rural, 
+                 prediction_populations$type))[1]
+  # Extract the label of each type of simulation
+  label_predictions <- unique(prediction_populations$type)
+  
+  ## Generate the barplot
+  prediction_populations |>
+    # Shift type to a factor
+    mutate(type = factor(type, label_predictions)) |>
+    # Cut contact into categories (defined by breaks and label_break)
+    mutate(group_contact = cut(
+      contact, breaks = breaks, labels = label_breaks)) |>    
+    ggplot(aes(x = group_contact, fill = ethnicity_rural)) + 
+    geom_bar(aes(y = after_stat(count / pop_size_i)), width=.5, position = "dodge") +
+    ylab("Proportion") + xlab("Number of contacts") + 
+    labs(fill = "ethnicity") + facet_grid(type~.) + 
+    scale_fill_manual(values = cols)
+  
+}
+
+#' Density plot showing the distribution of the number of contacts per individual 
+#' in synthetic populations 
+#'
+#' @param prediction_populations dataframe where each row corresponds to an 
+#' individual in a synthetic population, and three columns: "ethnicity_rural",
+#' the ethnicity of an individual, "contact" the simulated number of contact of that 
+#' individual, and "type" the type of simulation process that was used to simulate
+#' the number of contacts
+#' @param prop_above If above 0, only the top "1-prop_above" number of contacts
+#' will be shown for each level of type and ethnicity (prop_above = 0.9 shows 
+#' the density of top 10% individuals in each ethnicity)  
+#' @param log Should a log scale be used on the x-axis
+#' @param vec_xlim vector of length 2: boundaries of the x-axis
+#' @param cols Vector defining the colour for each ethnicity
+#'
+figure_density <- function(prediction_populations, prop_above = 0, log = TRUE, 
+                           vec_xlim = NULL,cols){
+  # Extract the label of each type of simulation
+  label_predictions <- unique(prediction_populations$type)
+  
+  # If using a log axis, set individuals with 0 contact to 0.5
+  if(log){
+    prediction_populations <- prediction_populations |> 
+      mutate(contact = case_when(contact == 0 ~ .5, .default = contact))
+      
+  }
+  
+  ## Generate the density plot
+  gg <- 
+    prediction_populations |> 
+    mutate(type = factor(type, label_predictions)) |> 
+    group_by(ethnicity_rural, type) |> 
+    # Rank observations in each ethnicity and type
+    mutate(rank_contact = rank(contact, ties.method = "first")/length(contact)) |> 
+    # Filter out the bottom prop_above proportion of individuals
+    filter(rank_contact > prop_above) |>
+    ggplot(aes(x = contact, fill = ethnicity_rural, col = ethnicity_rural)) + 
+    geom_density(alpha = .2) +
+    ylab("Density") + xlab("Number of contacts") +
+    theme_bw() +
+    labs(fill = "ethnicity", col = "ethnicity") + facet_grid(type~.) + 
+    scale_fill_manual(values = cols) + scale_color_manual(values = cols)
+  if(log) gg <- gg + scale_x_log10()
+  if(!is.null(vec_xlim)){
+    if(log & min(vec_xlim) <= 0) vec_xlim[1] <- .5
+    gg <- gg + coord_cartesian(xlim = vec_xlim)
+  }
+  return(gg)
+}
+
