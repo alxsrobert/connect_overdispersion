@@ -1,0 +1,130 @@
+Title: England and Wales, Age (17 categories), Sex (2 categories), Ethnic group (6 categories) and Economic activity status (10 categories)
+Issued: 08-14-2025 08:32:59
+Language: English
+Distribution:
+	Extension: csv
+	Size: 439056
+	URL: https://download.ons.gov.uk/downloads/filter-outputs/506b70ab-e275-4573-b611-d3c7f2b3828e.csv
+
+	Extension: csvw
+	Size: 4448
+	URL: https://download.ons.gov.uk/downloads/filter-outputs/506b70ab-e275-4573-b611-d3c7f2b3828e.csv-metadata.json
+
+	Extension: txt
+	Size: 5730
+	URL: https://download.ons.gov.uk/downloads/filter-outputs/506b70ab-e275-4573-b611-d3c7f2b3828e.txt
+
+Is Based On: UR_HH
+
+Area Type
+
+Census 2021 statistics are published for a number of different geographies.
+These can be large, for example the whole of England, or small, for example
+an output area (OA), the lowest level of geography for which statistics are
+produced.
+
+For higher levels of geography, more detailed statistics can be produced.
+When a lower level of geography is used, such as output areas (which have
+a minimum of 100 persons), the statistics produced have less detail. This is
+to protect the confidentiality of people and ensure that individuals or their
+characteristics cannot be identified.
+
+
+Coverage
+
+Census 2021 statistics are published for the whole of England and Wales.
+However, you can choose to filter areas by:
+
+- country - for example, Wales
+- region - for example, London
+- local authority - for example, Cornwall
+- health area – for example, Clinical Commissioning Group
+- statistical area - for example, MSOA or LSOA
+
+
+Protecting personal data
+
+Sometimes we need to make changes to data if it is possible to identify
+individuals. This is known as statistical disclosure control.
+
+In Census 2021, we:
+- swapped records (targeted record swapping), for example, if a household 
+  was likely to be identified in datasets because it has unusual
+  characteristics, we swapped the record with a similar one from a nearby
+  small area (very unusual households could be swapped with one in a nearby
+  local authority)
+- added small changes to some counts (cell key perturbation), for example,
+  we might change a count of four to a three or a five – this might make
+  small differences between tables depending on how the data are broken down
+  when we applied perturbation
+
+Read more in Section 5 of our article Design for Census 2021.
+
+Dimensions:
+
+	ID: nat
+
+	Label: England and Wales
+
+	Description: Data for both England and Wales.
+
+	Number Of Options: 1
+
+	Quality Statement: 
+
+
+	ID: resident_age_17a
+
+	Label: Age (17 categories)
+
+	Description: A person’s age on Census Day, 21 March 2021 in England and Wales. Infants aged under 1 year are classified as 0 years of age.
+
+	Number Of Options: 17
+
+	Quality Statement: Estimates for single year of age between ages 90 and 100+ are less reliable than other ages. Estimation and adjustment at these ages was based on the age range 90+ rather than five-year age bands.
+
+
+	ID: sex
+
+	Label: Sex (2 categories)
+
+	Description: This is the sex recorded by the person completing the census. The options were “Female” and “Male”.
+
+	Number Of Options: 2
+
+	Quality Statement: 
+
+
+	ID: ethnic_group_tb_6a
+
+	Label: Ethnic group (6 categories)
+
+	Description: The ethnic group that the person completing the census feels they belong to. This could be based on their culture, family background, identity or physical appearance.
+
+Respondents could choose one out of 19 tick-box response categories, including write-in response options.
+
+	Number Of Options: 6
+
+	Quality Statement: 
+
+
+	ID: economic_activity_status_10a
+
+	Label: Economic activity status (10 categories)
+
+	Description: People aged 16 years and over are economically active if, between 15 March and 21 March 2021, they were:
+
+* in employment (an employee or self-employed)
+* unemployed, but looking for work and could start within two weeks
+* unemployed, but waiting to start a job that had been offered and accepted
+
+It is a measure of whether or not a person was an active participant in the labour market during this period. Economically inactive are those aged 16 years and over who did not have a job between 15 March to 21 March 2021 and had not looked for work between 22 February to 21 March 2021 or could not start work within two weeks.
+
+The census definition differs from International Labour Organization definition used on the Labour Force Survey, so estimates are not directly comparable.
+
+This classification splits out full-time students from those who are not full-time students when they are employed or unemployed. It is recommended to sum these together to look at all of those in employment or unemployed, or to use the four category labour market classification, if you want to look at all those with a particular labour market status.
+
+	Number Of Options: 10
+
+	Quality Statement: As Census 2021 was during a unique period of rapid change, take care when using Labour Market data for planning purposes.
+
