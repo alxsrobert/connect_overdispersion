@@ -9,7 +9,7 @@ clean_hh_size <- function(age_groups, region = "England"){
     age_eth_hh_ref <- import("data/age_ethnicity_householdsize_london.csv")
   } else if(region %in% c("Birmingham", "Leicester", "Liverpool", 
                           "Manchester", "York")){
-    age_eth_hh_ref <- import("data/age_ethnicity_household_size_la.csv")
+    age_eth_hh_ref <- import("data/age_ethnicity_householdsize_la.csv")
   } else 
     stop("region must be England, London, Birmingham, Leicester, Liverpool,
          Manchester, or York")
