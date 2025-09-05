@@ -1,9 +1,11 @@
 anonymised <- TRUE
 source("R/library_and_scripts.R")
 
-list_with_inc <- readRDS(paste0(
-  "results/regression_output", if(anonymised) "_anoun", ".rds"))
 which_model <- "full_od_cathh"
+
+
+model_sim <- readRDS(paste0(
+  "results/regression_output", if(anonymised) "_anoun", ".rds"))[[which_model]]
 
 cols <- c("#002973", "#ffdd00", "#d53880", "#afb2b4", "#91bfdb")
 
@@ -12,23 +14,24 @@ cols <- c("#002973", "#ffdd00", "#d53880", "#afb2b4", "#91bfdb")
 pop_size <- 20000
 n_draws <- 200
 ethnicity <- c("Asian_Urban", "Black_Urban", "Mixed_Urban", "White_Urban")
+region_sim <- "York"
 
 ## Generate stochastic distribution of contacts in simulated populations
 all_prediction_pop <- rbind.data.frame(
   # At a given level
-  create_contact_in_pop(list_with_inc, pop_size, n_draws, which_model, 
-                        "at baseline", seed = 1, vec_ethnicity_rural = ethnicity) |> 
+  create_contact_in_pop(model_sim, pop_size, n_draws, "at baseline", seed = 1, 
+                        vec_ethnicity_rural = ethnicity, region = region_sim) |> 
     select(ethnicity_rural, contact, type), 
   # In a simulated population (age distribution from UK population data,
   # income distribution by age from participant data)
-  create_contact_in_pop(list_with_inc, pop_size, n_draws, which_model, 
-                        "population", seed = 1, vec_ethnicity_rural = ethnicity) |>
+  create_contact_in_pop(model_sim, pop_size, n_draws, "population", seed = 1, 
+                        vec_ethnicity_rural = ethnicity, region = region_sim) |>
     select(ethnicity_rural, contact, type),
   # In a simulated population (age distribution from UK population data by ethnicity, 
   # income distribution by age and ethnicity from participant data)
-  create_contact_in_pop(list_with_inc, pop_size, n_draws, which_model, 
+  create_contact_in_pop(model_sim, pop_size, n_draws, 
                         "ethnicity-stratified\n population", seed = 1, 
-                        vec_ethnicity_rural = ethnicity) |>
+                        vec_ethnicity_rural = ethnicity, region = region_sim) |>
     select(ethnicity_rural, contact, type)
 ) 
 

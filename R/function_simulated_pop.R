@@ -1,10 +1,8 @@
 #' Simulate the number of contacts per individual in a simulated population
 #'
-#' @param list_with_inc List of regression outputs (saved in script_regression.R)
+#' @param model brmsfit object (regression model)
 #' @param tot_size Overall size of the population
 #' @param n_draws Number of draws from the regression results used to simulate the number of contacts
-#' @param which_model Which model from list_with_inc should be used to simulate
-#' the number of contacts
 #' @param seed 
 #' @param which_type What type of population is used to generate the feature of 
 #' each individual ("at baseline": only one level of income, gender, age, 
@@ -16,29 +14,33 @@
 #' corresponds to the distribution *by ethnicity* and age in the UK.
 #' @param vec_ethnicity_rural Vector indicating the levels of ethnicity
 #' in the synthetic population
+#' @param region Region in which the synthetic population is generated. It impacts
+#' the distribution of ethnicity, age by ethnicity, household size, and 
+#' employment status.
 #'
 #' @return Data frame containing the number of contact per individual
 create_contact_in_pop <- function(
-    list_with_inc, tot_size, n_draws, which_model = "full_od_cathh", 
+    model, tot_size, n_draws, 
     seed = NULL, which_type = c("at baseline", "population", 
                                 "ethnicity-stratified\n population"),
     vec_ethnicity_rural = c("Asian_Urban", "Black_Urban", "Mixed_Urban",
-                            "White_Urban", "White_Rural")){
+                            "White_Urban", "White_Rural"),
+    region = "England"){
   if(!is.null(seed)) set.seed(seed)
 
   # For each individual, we use 5 random draws from the regression outputs,
   # the size of the simulated population is therefore tot_size / 5
   pop_size <- round(tot_size / 5)
   # Compute the total number of draws in the regression analysis
-  summary_model <- summary(list_with_inc[[which_model]])
+  summary_model <- summary(model)
   tot_draws <- (summary_model$iter - summary_model$warmup) * summary_model$chains
   
   # Generate synthetic population
-  df_indiv <- create_pop(list_with_inc, tot_size, n_draws, which_model, seed, 
-                         which_type, vec_ethnicity_rural)
+  df_indiv <- create_pop(model, tot_size, n_draws, which_model, seed, 
+                         which_type, vec_ethnicity_rural, region)
   
   # Get all variables used in the model formula
-  vars_in_model <- all.vars(formula(list_with_inc[[which_model]])$formula)
+  vars_in_model <- all.vars(formula(model)$formula)
   # Variables in your new data
   vars_in_newdata <- names(df_indiv)
   # Find missing variables
@@ -49,7 +51,7 @@ create_contact_in_pop <- function(
   
   df_indiv_with_contact <- 
     ## Predict number of contacts for each row
-    predict(list_with_inc[[which_model]], newdata = df_indiv, 
+    predict(model, newdata = df_indiv, 
             summary = FALSE, draw_ids = seq(1, tot_draws, tot_draws/n_draws)
     ) |> 
     t() |> 
@@ -71,7 +73,7 @@ create_contact_in_pop <- function(
 
 #' Create synthetic population
 #'
-#' @param list_with_inc List of regression outputs (saved in script_regression.R)
+#' @param model brmsfit object (regression model)
 #' @param tot_size Overall size of the population
 #' @param n_draws Number of draws from the regression results used to simulate the number of contacts
 #' @param which_model Which model from list_with_inc should be used to simulate
@@ -87,6 +89,9 @@ create_contact_in_pop <- function(
 #' corresponds to the distribution *by ethnicity* and age in the UK.
 #' @param vec_ethnicity_rural Vector indicating the levels of ethnicity
 #' in the synthetic population
+#' @param region Region in which the synthetic population is generated. It impacts
+#' the distribution of ethnicity, age by ethnicity, household size, and 
+#' employment status.
 #'
 #' @return Data frame containing the age group, gender, household size, income, 
 #' employment status, and ethnicity for each individual.
@@ -94,13 +99,13 @@ create_contact_in_pop <- function(
 #'
 #' @examples
 create_pop <- function(
-    list_with_inc, tot_size, n_draws, which_model, seed, which_type,
-    vec_ethnicity_rural){
+    model, tot_size, n_draws, which_model, seed, which_type,
+    vec_ethnicity_rural, region){
   ### First, we want to import the distribution of household size, income, 
   ### employment status, age group and ethnicity in the population.
   ## We use the age groups from the regression model, and order them in 
   ## increasing order.
-  all_age_groups <- list_with_inc[[which_model]]$data$p_age_group |> 
+  all_age_groups <- model$data$p_age_group |> 
     unique() |> as.character()
   age_group_order <- order(as.numeric(gsub(".*[-+]", "", all_age_groups)))
   age_group_level <- unique(all_age_groups)[age_group_order]
@@ -128,7 +133,7 @@ create_pop <- function(
     
     ## Proportion of household size in England, stratified by age and ethnic group
     ## Group all ethnicities, then compute proportion
-    dt_hh_size <- clean_hh_size(age_group_level) |> 
+    dt_hh_size <- clean_hh_size(age_group_level, region = region) |> 
       group_by(age_group, hh_size) |>
       summarise(n = sum(n), .groups = "drop") |>
       group_by(age_group) |>
@@ -138,13 +143,14 @@ create_pop <- function(
     ## Proportion of employment status in England, stratified by age, gender, and
     ## ethnic group
     ## Group all ethnicities, then compute proportion
-    dt_employ <- clean_employ(age_group_level) |>
+    dt_employ <- clean_employ(age_group_level, region = region) |>
       group_by(age_group, econ, sex) |>
       summarise(n = sum(n), .groups = "drop") |>
       group_by(age_group, sex) |>
       mutate(tot = sum(n), prop = n /sum(n), ethnic_group = "All")
     ## Distribution of ethnicity by age group in England
-    dt_age_eth <- clean_age_eth(age_group_level) |> filter(ethnicity == "all")
+    dt_age_eth <- clean_age_eth(age_group_level, region = region) |> 
+      filter(ethnicity == "all")
     
     ## Divide and multiply by n_level, to make sure the number of replicates
     ## in rep(vec_ethnicity_rural, pop_size / n_level) is round
@@ -198,16 +204,16 @@ create_pop <- function(
       ethnic_i <- gsub("[_].*", "", i)
       
       ## Proportion of household size in England, stratified by age and ethnic group
-      dt_hh_size_i <- clean_hh_size(age_group_level) |> 
+      dt_hh_size_i <- clean_hh_size(age_group_level, region = region) |> 
         filter(grepl(ethnic_i, ethnic_group))
       ## Proportion of household income in England, stratified by ethnic group
       dt_income_i <- clean_income() |> filter(ethnicity == ethnic_i)
       ## Proportion of employment status in England, stratified by age, gender, and
       ## ethnic group
-      dt_employ_i <- clean_employ(age_group_level) |> 
+      dt_employ_i <- clean_employ(age_group_level, region = region) |> 
         filter(grepl(ethnic_i, ethnic_group))
       ## Distribution of ethnicity by age group in England
-      dt_age_eth_i <- clean_age_eth(age_group_level) |> 
+      dt_age_eth_i <- clean_age_eth(age_group_level, region = region) |> 
         filter(ethnicity == tolower(ethnic_i))
 
       df_indiv_i <- tibble(
