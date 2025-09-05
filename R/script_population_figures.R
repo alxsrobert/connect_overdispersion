@@ -11,22 +11,24 @@ cols <- c("#002973", "#ffdd00", "#d53880", "#afb2b4", "#91bfdb")
 ## regression outputs
 pop_size <- 20000
 n_draws <- 200
+ethnicity <- c("Asian_Urban", "Black_Urban", "Mixed_Urban", "White_Urban")
 
 ## Generate stochastic distribution of contacts in simulated populations
 all_prediction_pop <- rbind.data.frame(
   # At a given level
   create_contact_in_pop(list_with_inc, pop_size, n_draws, which_model, 
-                        "at baseline", seed = 1) |> 
+                        "at baseline", seed = 1, vec_ethnicity_rural = ethnicity) |> 
     select(ethnicity_rural, contact, type), 
   # In a simulated population (age distribution from UK population data,
   # income distribution by age from participant data)
   create_contact_in_pop(list_with_inc, pop_size, n_draws, which_model, 
-                        "population", seed = 1) |>
+                        "population", seed = 1, vec_ethnicity_rural = ethnicity) |>
     select(ethnicity_rural, contact, type),
   # In a simulated population (age distribution from UK population data by ethnicity, 
   # income distribution by age and ethnicity from participant data)
   create_contact_in_pop(list_with_inc, pop_size, n_draws, which_model, 
-                        "ethnicity-stratified\n population", seed = 1) |>
+                        "ethnicity-stratified\n population", seed = 1, 
+                        vec_ethnicity_rural = ethnicity) |>
     select(ethnicity_rural, contact, type)
 ) 
 

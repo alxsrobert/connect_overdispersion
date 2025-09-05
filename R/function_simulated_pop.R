@@ -14,16 +14,16 @@
 #' "ethnicity-stratified\n population": the distribution of age, gender, 
 #' household size, income, and employment in the simulated population 
 #' corresponds to the distribution *by ethnicity* and age in the UK.
+#' @param vec_ethnicity_rural Vector indicating the levels of ethnicity
+#' in the synthetic population
 #'
 #' @return Data frame containing the number of contact per individual
-#' @export
-#'
-#' @examples
 create_contact_in_pop <- function(
     list_with_inc, tot_size, n_draws, which_model = "full_od_cathh", 
-    seed = NULL,
-    which_type = c("at baseline", "population", 
-                   "ethnicity-stratified\n population")){
+    seed = NULL, which_type = c("at baseline", "population", 
+                                "ethnicity-stratified\n population"),
+    vec_ethnicity_rural = c("Asian_Urban", "Black_Urban", "Mixed_Urban",
+                            "White_Urban", "White_Rural")){
   if(!is.null(seed)) set.seed(seed)
 
   # For each individual, we use 5 random draws from the regression outputs,
@@ -35,7 +35,7 @@ create_contact_in_pop <- function(
   
   # Generate synthetic population
   df_indiv <- create_pop(list_with_inc, tot_size, n_draws, which_model, seed, 
-                         which_type)
+                         which_type, vec_ethnicity_rural)
   
   # Get all variables used in the model formula
   vars_in_model <- all.vars(formula(list_with_inc[[which_model]])$formula)
@@ -85,6 +85,8 @@ create_contact_in_pop <- function(
 #' "ethnicity-stratified\n population": the distribution of age, gender, 
 #' household size, income, and employment in the simulated population 
 #' corresponds to the distribution *by ethnicity* and age in the UK.
+#' @param vec_ethnicity_rural Vector indicating the levels of ethnicity
+#' in the synthetic population
 #'
 #' @return Data frame containing the age group, gender, household size, income, 
 #' employment status, and ethnicity for each individual.
@@ -92,7 +94,8 @@ create_contact_in_pop <- function(
 #'
 #' @examples
 create_pop <- function(
-    list_with_inc, tot_size, n_draws, which_model, seed, which_type){
+    list_with_inc, tot_size, n_draws, which_model, seed, which_type,
+    vec_ethnicity_rural){
   ### First, we want to import the distribution of household size, income, 
   ### employment status, age group and ethnicity in the population.
   ## We use the age groups from the regression model, and order them in 
@@ -102,8 +105,6 @@ create_pop <- function(
   age_group_order <- order(as.numeric(gsub(".*[-+]", "", all_age_groups)))
   age_group_level <- unique(all_age_groups)[age_group_order]
   
-  vec_ethnicity_rural <- c("Asian_Urban", "Black_Urban", "Mixed_Urban",
-                           "White_Urban", "White_Rural")
   n_level <- length(vec_ethnicity_rural)  
   
   # Create population according to the type
@@ -191,7 +192,7 @@ create_pop <- function(
     ## type = ethnicity-stratified population: Using the distribution of each 
     ## variable in the population for each ethnicity.
     df_indiv <- tibble()
-    pop_size_i <- round(pop_size / 5)
+    pop_size_i <- round(pop_size / length(vec_ethnicity_rural))
     for(i in vec_ethnicity_rural){
       # Extract the ethnicity level for i
       ethnic_i <- gsub("[_].*", "", i)
