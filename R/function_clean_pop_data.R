@@ -199,7 +199,7 @@ clean_employ <- function(age_groups, region = "England"){
     ## We could not import the gender distribution in the raw data (too many 
     ## variables at a local level), so we use the gender distribution from the 
     ## national data to infer the local gender distribution
-    age_eth_employ_ref <- 
+    age_eth_employ_ref <- age_eth_employ_ref |> 
       filter(region == region) |> 
       left_join(national_level |> 
                   group_by(age, age_full, ethnic_group, econ) |> 
