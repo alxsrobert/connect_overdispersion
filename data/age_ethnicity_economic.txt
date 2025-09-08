@@ -1,18 +1,18 @@
-Title: England and Wales, Age (17 categories), Sex (2 categories), Ethnic group (6 categories) and Economic activity status (10 categories)
-Issued: 08-14-2025 08:32:59
+Title: Countries, Age (17 categories), Sex (2 categories), Ethnic group (6 categories) and Economic activity status (10 categories)
+Issued: 09-08-2025 18:58:26
 Language: English
 Distribution:
 	Extension: csv
 	Size: 439056
-	URL: https://download.ons.gov.uk/downloads/filter-outputs/506b70ab-e275-4573-b611-d3c7f2b3828e.csv
+	URL: https://download.ons.gov.uk/downloads/filter-outputs/688ffc01-5578-4d0e-bf39-3e9c89461241.csv
 
 	Extension: csvw
 	Size: 4448
-	URL: https://download.ons.gov.uk/downloads/filter-outputs/506b70ab-e275-4573-b611-d3c7f2b3828e.csv-metadata.json
+	URL: https://download.ons.gov.uk/downloads/filter-outputs/688ffc01-5578-4d0e-bf39-3e9c89461241.csv-metadata.json
 
 	Extension: txt
 	Size: 5730
-	URL: https://download.ons.gov.uk/downloads/filter-outputs/506b70ab-e275-4573-b611-d3c7f2b3828e.txt
+	URL: https://download.ons.gov.uk/downloads/filter-outputs/688ffc01-5578-4d0e-bf39-3e9c89461241.txt
 
 Is Based On: UR_HH
 
@@ -62,13 +62,13 @@ Read more in Section 5 of our article Design for Census 2021.
 
 Dimensions:
 
-	ID: nat
+	ID: ctry
 
-	Label: England and Wales
+	Label: Countries
 
-	Description: Data for both England and Wales.
+	Description: Data for either the whole of England or Wales.
 
-	Number Of Options: 1
+	Number Of Options: 2
 
 	Quality Statement: 
 
