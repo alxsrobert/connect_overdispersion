@@ -94,7 +94,7 @@ clean_hh_size <- function(age_groups, region = "England"){
   return(age_eth_hh)
 }
 
-## household income by ethnicity, 
+## household income by ethnicity in the United Kingdom, 
 ## from https://www.ethnicity-facts-figures.service.gov.uk/work-pay-and-benefits/pay-and-income/household-income/latest/#by-ethnicity
 ## (download the data here: https://www.ethnicity-facts-figures.service.gov.uk/work-pay-and-benefits/pay-and-income/household-income/latest/downloads/household-income-2021.csv)
 clean_income <- function(){
