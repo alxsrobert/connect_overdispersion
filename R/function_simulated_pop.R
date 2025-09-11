@@ -150,7 +150,7 @@ create_pop <- function(
       mutate(tot = sum(n), prop = n /sum(n), ethnic_group = "All")
     ## Distribution of ethnicity by age group in England
     dt_age_eth <- clean_age_eth(age_group_level, region = region) |> 
-      filter(ethnicity == "all")
+      filter(ethnicity == "All")
     
     ## Divide and multiply by n_level, to make sure the number of replicates
     ## in rep(vec_ethnicity_rural, pop_size / n_level) is round
@@ -215,7 +215,7 @@ create_pop <- function(
         filter(grepl(ethnic_i, ethnic_group))
       ## Distribution of ethnicity by age group in England
       dt_age_eth_i <- clean_age_eth(age_group_level, region = region) |> 
-        filter(ethnicity == tolower(ethnic_i))
+        filter(ethnicity == ethnic_i)
 
       df_indiv_i <- tibble(
         # Sample age from dt_age_eth_i
