@@ -16,12 +16,12 @@ clean_hh_size <- function(age_groups, region = "England"){
   
   ## rename the columns
   colnames(age_eth_hh_ref) <- c(
-    "code", "region", "age", "age_full", "ethnic_code", "ethnic_group", 
+    "code", "area", "age", "age_full", "ethnic_code", "ethnic_group", 
     "hh_size_code", "hh_size", "n")
   
   ## Use age_full to create age_min and age_max, the boundaries of the age groups
   age_eth_hh_ref <- age_eth_hh_ref |> 
-    filter(region == region) |> 
+    filter(area == region) |> 
     mutate(
       age_min = case_when(
         ## If age_full is XXX and under => set age_min to 0
@@ -149,7 +149,7 @@ clean_employ <- function(age_groups, region = "England"){
   
   ## rename the columns
   colnames(national_level) <- c(
-    "code", "region", "age", "age_full", "sex_code", "sex", "ethnic_code",
+    "code", "area", "age", "age_full", "sex_code", "sex", "ethnic_code",
     "ethnic_group", "econ_code", "econ", "n")
   
   ## Import the dataset
@@ -165,7 +165,7 @@ clean_employ <- function(age_groups, region = "England"){
                        "Code Sex (2 categories)" = "Male")
     )
     colnames(age_eth_employ_ref) <- c(
-      "code", "region", "age", "age_full", "ethnic_code", "ethnic_group", 
+      "code", "area", "age", "age_full", "ethnic_code", "ethnic_group", 
       "econ_code", "econ", "n", "sex_code", "sex")
 
     ## We could not import the gender distribution in the raw data (too many 
@@ -176,7 +176,7 @@ clean_employ <- function(age_groups, region = "England"){
       left_join(national_level |> 
                   group_by(age, age_full, ethnic_group, econ) |> 
                   mutate(prop = n / sum(n)) |> 
-                  select(-region, -code, -n),
+                  select(-area, -code, -n),
                 by = c("age", "age_full", "ethnic_code", "ethnic_group",
                        "econ_code", "econ", "sex_code", "sex")) |> 
       mutate(prop = case_when(is.na(prop) ~ 0, .default = prop),
@@ -195,18 +195,18 @@ clean_employ <- function(age_groups, region = "England"){
                          "Code Sex (2 categories)" = "Male")
       )
     colnames(age_eth_employ_ref) <- c(
-      "code", "region", "age", "age_full", "ethnic_code", "ethnic_group", 
+      "code", "area", "age", "age_full", "ethnic_code", "ethnic_group", 
       "econ_code", "econ", "n", "sex_code", "sex")
 
     ## We could not import the gender distribution in the raw data (too many 
     ## variables at a local level), so we use the gender distribution from the 
     ## national data to infer the local gender distribution
     age_eth_employ_ref <- age_eth_employ_ref |> 
-      filter(region == region) |> 
+      filter(area == region) |> 
       left_join(national_level |> 
                   group_by(age, age_full, ethnic_group, econ) |> 
                   mutate(prop = n / sum(n)) |> 
-                  select(-region, -code, -n),
+                  select(-area, -code, -n),
                 by = c("age", "age_full", "ethnic_code", "ethnic_group",
                        "econ_code", "econ", "sex_code", "sex")
                 ) |>
