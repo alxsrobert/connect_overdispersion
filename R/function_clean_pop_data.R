@@ -176,7 +176,9 @@ clean_employ <- function(age_groups, region = "England"){
       left_join(national_level |> 
                   group_by(age, age_full, ethnic_group, econ) |> 
                   mutate(prop = n / sum(n)) |> 
-                  select(-region, -code, -n)) |> 
+                  select(-region, -code, -n),
+                by = c("age", "age_full", "ethnic_code", "ethnic_group",
+                       "econ_code", "econ", "sex_code", "sex")) |> 
       mutate(prop = case_when(is.na(prop) ~ 0, .default = prop),
              n = round(prop * n)) |> 
       select(-prop)
@@ -204,7 +206,10 @@ clean_employ <- function(age_groups, region = "England"){
       left_join(national_level |> 
                   group_by(age, age_full, ethnic_group, econ) |> 
                   mutate(prop = n / sum(n)) |> 
-                  select(-region, -code, -n)) |> 
+                  select(-region, -code, -n),
+                by = c("age", "age_full", "ethnic_code", "ethnic_group",
+                       "econ_code", "econ", "sex_code", "sex")
+                ) |>
       mutate(prop = case_when(is.na(prop) ~ 0, .default = prop),
              n = round(prop * n)) |> 
       select(-prop)
