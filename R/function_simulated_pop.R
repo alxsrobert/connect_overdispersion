@@ -115,7 +115,7 @@ create_pop <- function(
   # Create population according to the type
   if(which_type == "at baseline"){
     ## type = baseline: Using one level for each variable, only ethnicity changes
-    pop_size <- round(pop_size / n_level) * n_level
+    pop_size <- round(tot_size / n_level) * n_level
     df_indiv <- tibble(
       age = factor("18-24", levels = age_group_level),
       ethnicity_rural = rep(vec_ethnicity_rural, pop_size / n_level),
@@ -154,7 +154,7 @@ create_pop <- function(
     
     ## Divide and multiply by n_level, to make sure the number of replicates
     ## in rep(vec_ethnicity_rural, pop_size / n_level) is round
-    pop_size <- round(pop_size / n_level) * n_level
+    pop_size <- round(tot_size / n_level) * n_level
     df_indiv <- tibble(
       # Sample age from dt_age_eth
       age = sample(dt_age_eth$age_group, size = pop_size, replace = TRUE, 
@@ -198,7 +198,8 @@ create_pop <- function(
     ## type = ethnicity-stratified population: Using the distribution of each 
     ## variable in the population for each ethnicity.
     df_indiv <- tibble()
-    pop_size_i <- round(pop_size / length(vec_ethnicity_rural))
+    pop_size_i <- round(tot_size / length(vec_ethnicity_rural))
+    
     for(i in vec_ethnicity_rural){
       # Extract the ethnicity level for i
       ethnic_i <- gsub("[_].*", "", i)
