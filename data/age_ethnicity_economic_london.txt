@@ -1,0 +1,4 @@
+Population type: All Usual residents in Household
+Area type: Regions
+Coverage: search for lower tier local authorities by name: London
+Variables: Age (17 categories), Ethnic group (6 categories) and Economic activity status (10 categories)

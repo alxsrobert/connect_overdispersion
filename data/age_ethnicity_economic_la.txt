@@ -1,0 +1,4 @@
+Population type: All Usual residents in Household
+Area type: Lower tier local authorities
+Coverage: search for lower tier local authorities by name: Birmingham, Leicester, Liverpool, Manchester, York
+Variables: Age (17 categories), Ethnic group (6 categories) and Economic activity status (10 categories)
