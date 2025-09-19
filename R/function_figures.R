@@ -137,6 +137,135 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
     xlab("Coefficient") + ylab("Value") + 
     if(length(which_model) == 1) guides(col="none")
 }
+
+#' Show all parameters from one model (including reference levels)
+#'
+#' @param list_regression list of regression object
+#' @param which_model Model to plot
+#' @param filter_group Group(s) to plot (if set to NULL, all groups are plotted),
+#' set of possible groups: "intercept", "age", "ethnicity_rural", "income",
+#' "employment", "household", "shape", "others"
+#'
+#' @return forest plot of the parameter estimates
+figure_forest_plot <- function(list_regression, which_model){
+  # Create a tibble containing all coefficient estimates and CIs for all models
+  dt_coef <- clean_list_regression_output(list_regression)
+  # Extract the terms from the regression, putting the reference levels first
+  lev_ref <- 
+    unique(c("hh_size: One", "White_Urban", "Employed", "Lessthan20000", 
+             "20000-40000", "Female", "Male", "weekday", "0-4", "5-9",
+             "10-14", "15-17", "18-24", levels(dt_coef$term)))
+  
+  # Add reference levels
+  dt_coef <- rbind.data.frame(
+    dt_coef,
+    cbind.data.frame(
+      model = which_model, term = "18-24", estimate = 1, conf.low = 1,  
+      conf.high = 1, group = "age"),
+    cbind.data.frame(
+      model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "ethnicity_rural"),
+    cbind.data.frame(
+      model = which_model, term = "Employed", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "employment"),
+    cbind.data.frame(
+      model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "shape"),
+    cbind.data.frame(
+      model = which_model, term = "20000-40000", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "income"),
+    cbind.data.frame(
+      model = which_model, term = "hh_size: One", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "household"),
+    cbind.data.frame(
+      model = which_model, term = "Female", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "gender"),
+    cbind.data.frame(
+      model = which_model, term = "weekday", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "day_of_the_week")
+  )
+  
+  dt_coef <- dt_coef |>
+    mutate(
+      term = factor(term, levels = lev_ref, ordered = TRUE)
+    )
+  
+  ## Remove Intercept values
+  dt_coef_plot <- 
+    dt_coef |>
+    filter(model %in% which_model &
+             !group %in% "intercept" & 
+             !term %in% "(Intercept)") |> 
+    mutate(
+      group = factor(group, levels = c("age", "ethnicity", "ethnicity_rural", "employment",
+                                       "income", "shape", "household", "gender",
+                                       "day_of_the_week"))
+    )
+  # Set ethnicity rural and shape as the top panels
+  dt_coef_plot$group <- relevel(dt_coef_plot$group, "shape")
+  dt_coef_plot$group <- relevel(dt_coef_plot$group, "ethnicity_rural")
+  
+  # Rename covariates
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "age"] <- "Age group"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "employment"] <- 
+    "Employment\n status"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
+    "Household\n income"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
+    "Overdispersion\n (shape)"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
+    "Household\n size"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "ethnicity_rural"] <- 
+    "Ethnicity\nurban / rural"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "gender"] <- 
+    "Gender"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "day_of_the_week"] <- 
+    "Day"
+  # Rename coefficient labels
+  levels(dt_coef_plot$term) <- gsub("_Rural", " and Rural", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("_Urban", " and Urban", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("hh_size: ", "", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Lessthan", "<", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Over", ">=", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("000_", "000 to ", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Lookingafterhomeorfamily", 
+                                    "Looking after home or family", 
+                                    levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Long_termsickordisabled", 
+                                    "Long-term sick or disabled", 
+                                    levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("000_", "000 to ", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("unemployed", "Unemployed", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("week", "Week", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Morethan", ">", levels(dt_coef_plot$term))
+  
+  dt_coef_plot$term <- factor(dt_coef_plot$term, 
+                              levels = rev(levels(dt_coef_plot$term)))
+  
+  # Generate the forest plot
+  dt_coef_plot |> 
+    ggplot(aes(x = estimate, y = term, colour = group)) +
+    geom_point() +
+    geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+    geom_vline(xintercept = 1, linetype = "dashed") +
+    facet_grid(group ~ ., scales = "free_y", space = "free_y", switch = "y") +
+    scale_color_manual(
+      values = c("red", "red", rep("grey50", length(unique(dt_coef_plot$group))))) + 
+    labs(
+      x = "Coefficient (Estimate)",
+      y = NULL,
+      title = ""
+    ) +
+    xlim(c(0.1, 1.9)) + 
+    theme_minimal() +
+    guides(col = "none") + 
+    theme(
+      panel.grid.major.y = element_blank(), 
+      strip.placement = "outside",  
+      strip.text.y.left = element_text(angle = 90, vjust = 0),
+      strip.background = element_blank()
+    )
+  
   
 }
 
