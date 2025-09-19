@@ -27,14 +27,6 @@ figure_compare_models <- function(list_regression){
 #'
 #' @return ggplot object
 figure_parameter_model <- function(list_regression, which_model, filter_group = NULL){
-  
-  if(!is.null(filter_group)){
-    if(!all(is.element(filter_group, 
-                       c("intercept", "age", "ethnicity_rural", "income",
-                         "employment", "household", "shape", "others"))))
-      stop("If filter_group is not null, the only possible values are: \n'intercept', 'age', 'ethnicity_rural', 'income','employment', 'household', 'shape', 'others'")
-  }
-  
   # Create a tibble containing all coefficient estimates and CIs for all models
   dt_coef <- clean_list_regression_output(list_regression)
   lev_ref <- 
@@ -79,7 +71,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
   # Generate figure after removing Intercept values
   dt_coef_plot <- 
     dt_coef |>
-    filter(model == which_model &
+    filter(model %in% which_model &
              !group %in% "intercept" & 
              !term %in% "(Intercept)" & 
              !term %in% c("Other", "ethOther", "shape_ethOther")) |> 
@@ -90,8 +82,47 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
                                        "income", "shape", "household", "others"))
     )
   
-  if(is.null(filter_group)) filter_group <- unique(dt_coef$group)
+  if(!is.null(filter_group)){
+    which_group <- which(is.element(levels(dt_coef_plot$group), filter_group))
+    if(length(which_group) == 0)
+      stop(paste0("If filter_group is not null, the only possible values are ", 
+                  paste(levels(dt_coef_plot$group), collapse = ", ")))
+  } 
   
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "age"] <- "Age group"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "employment"] <- 
+    "Employment status"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
+    "Household income"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
+    "Overdispersion parameter (shape)"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
+    "Household size"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "others"] <- 
+    "Others"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "ethnicity_rural"] <- 
+    "Ethnicity and  urban / rural status"
+
+  levels(dt_coef_plot$term) <- gsub("_Rural", " and\n Rural", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("_Urban", " and\n Urban", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("hh_size: ", "", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Lessthan", "<", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Over", ">=", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("000_", "000 to ", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Lookingafterhomeorfamily", 
+                                    "Looking after\n home or family", 
+                                    levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Long_termsickordisabled", 
+                                    "Long-term sick\n or disabled", 
+                                    levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("000_", "000 to ", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("unemployed", "Unemployed", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("week", "Week", levels(dt_coef_plot$term))
+  levels(dt_coef_plot$term) <- gsub("Morethan", ">", levels(dt_coef_plot$term))
+  
+  if(is.null(filter_group)){
+    filter_group <- unique(dt_coef_plot$group)
+  } else filter_group <- levels(dt_coef_plot$group)[which_group]
   dt_coef_plot |> 
     filter(group %in% filter_group) |>
     ggplot(aes(x = term, ymin = conf.low, ymax = conf.high, col = model, 
@@ -103,9 +134,9 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
                ncol = ifelse(length(filter_group) > 4, 2, 1)) + 
     theme_bw() + 
     ylim(c(min(.3, dt_coef_plot$conf.low), max(2, dt_coef_plot$conf.high))) + 
-    guides(col="none") + 
-    theme(strip.text = element_blank()) +
-    xlab("Coefficient") + ylab("Value")
+    xlab("Coefficient") + ylab("Value") + 
+    if(length(which_model) == 1) guides(col="none")
+}
   
 }
 
@@ -145,8 +176,13 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
       contact, breaks = breaks, labels = label_breaks)) |>    
     ggplot(aes(x = group_contact, fill = ethnicity_rural)) + 
     geom_bar(aes(y = after_stat(count / pop_size_i)), width=.5, position = "dodge") +
-    ylab("Proportion") + xlab("Number of contacts") + 
-    labs(fill = "ethnicity") + facet_grid(type~.) + 
+    labs(
+      x = "Number of contacts",
+      y = "Proportion",
+      title = ""
+    ) +
+    labs(fill = "ethnicity") + 
+    facet_wrap(~type, ncol = 1) + 
     scale_fill_manual(values = cols)
   
 }
