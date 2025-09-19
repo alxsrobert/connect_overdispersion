@@ -25,8 +25,17 @@ create_contact_in_pop <- function(
                                 "ethnicity-stratified\n population"),
     vec_ethnicity_rural = c("Asian_Urban", "Black_Urban", "Mixed_Urban",
                             "White_Urban", "White_Rural"),
-    region = "England"){
+    region = c("England", "London", "Manchester", "Birmingham", "Leicester", 
+               "Liverpool", "York")){
   if(!is.null(seed)) set.seed(seed)
+  
+  if (is.null(region) || length(region) != 1L || 
+      !region %in% c("England", "London", "Manchester", "Birmingham", "Leicester", 
+                     "Liverpool", "York")) {
+    stop("region argument must be one of: England, London, Manchester, Birmingham, 
+         Leicester, Liverpool, York")
+  }
+  
 
   # For each individual, we use 5 random draws from the regression outputs,
   # the size of the simulated population is therefore tot_size / 5
