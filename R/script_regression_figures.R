@@ -23,4 +23,8 @@ figure_parameter_model(list_with_inc, which_model,
                        filter_group = c("ethnicity_rural", "shape")) +  
   theme(axis.text=element_text(size=12),
         axis.title=element_text(size=14,face="bold"))
+figure_forest_plot(list_with_inc, which_model) +  
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        strip.text = element_text(size=14,face="bold"))
 
