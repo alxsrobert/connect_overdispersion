@@ -1,9 +1,12 @@
 #' Simulate the number of contacts per individual in a simulated population
 #'
 #' @param model brmsfit object (regression model)
-#' @param tot_size Overall size of the population
 #' @param n_draws Number of draws from the regression results used to simulate the number of contacts
-#' @param seed 
+#' @param tot_pop_size Overall size of the population (e.g. draw 20,000 individuals).
+#' @param each Population size at each level of age and ethnicity (e.g. draw 
+#' 1000 individuals for each level of age and ethnicity, so an overall 
+#' population size of 55,000 inhabitants with 5 ethnicities and 11 age groups).
+#' @param seed integer: seed of the run
 #' @param which_type What type of population is used to generate the feature of 
 #' each individual ("at baseline": only one level of income, gender, age, 
 #' household size, and employment) is used; "population": the age, gender, 
@@ -20,9 +23,8 @@
 #'
 #' @return Data frame containing the number of contact per individual
 create_contact_in_pop <- function(
-    model, tot_size, n_draws, 
-    seed = NULL, which_type = c("at baseline", "population", 
-                                "ethnicity-stratified\n population"),
+    model, n_draws, tot_pop_size = NULL, each = NULL, seed = NULL, 
+    which_type = c("at baseline", "population", "ethnicity-stratified\n population"),
     vec_ethnicity_rural = c("Asian_Urban", "Black_Urban", "Mixed_Urban",
                             "White_Urban", "White_Rural"),
     region = c("England", "London", "Manchester", "Birmingham", "Leicester", 
@@ -40,13 +42,20 @@ create_contact_in_pop <- function(
   # For each individual, we use 5 random draws from the regression outputs,
   # the size of the simulated population is therefore tot_size / 5
   pop_size <- round(tot_size / 5)
+  if(is.null(tot_pop_size) & is.null(each)) {
+    stop("both tot_pop_size and each are null, specify one of the two")
+  } else if(!is.null(tot_pop_size) & !is.null(each)) {
+    warning("values are assigned to both tot_pop_size and each, the program is using each and ignoring tot_pop_size")
+  }
+  
   # Compute the total number of draws in the regression analysis
   summary_model <- summary(model)
   tot_draws <- (summary_model$iter - summary_model$warmup) * summary_model$chains
   
   # Generate synthetic population
-  df_indiv <- create_pop(model, tot_size, n_draws, which_model, seed, 
-                         which_type, vec_ethnicity_rural, region)
+  df_indiv <- create_pop(model = model, tot_pop_size = tot_pop_size, each = each, 
+                         which_type = which_type, region = region,
+                         vec_ethnicity_rural = vec_ethnicity_rural)
   
   # Get all variables used in the model formula
   vars_in_model <- all.vars(formula(model)$formula)
@@ -83,11 +92,10 @@ create_contact_in_pop <- function(
 #' Create synthetic population
 #'
 #' @param model brmsfit object (regression model)
-#' @param tot_size Overall size of the population
-#' @param n_draws Number of draws from the regression results used to simulate the number of contacts
-#' @param which_model Which model from list_with_inc should be used to simulate
-#' the number of contacts
-#' @param seed 
+#' @param tot_pop_size Overall size of the population (e.g. draw 20,000 individuals).
+#' @param each Population size at each level of age and ethnicity (e.g. draw 
+#' 1000 individuals for each level of age and ethnicity, so an overall 
+#' population size of 55,000 inhabitants with 5 ethnicities and 11 age groups).
 #' @param which_type What type of population is used to generate the feature of 
 #' each individual ("at baseline": only one level of income, gender, age, 
 #' household size, and employment) is used; "population": the age, gender, 
@@ -104,12 +112,8 @@ create_contact_in_pop <- function(
 #'
 #' @return Data frame containing the age group, gender, household size, income, 
 #' employment status, and ethnicity for each individual.
-#' @export
-#'
-#' @examples
 create_pop <- function(
-    model, tot_size, n_draws, which_model, seed, which_type,
-    vec_ethnicity_rural, region){
+    model, tot_pop_size, each, which_type, vec_ethnicity_rural, region){
   ### First, we want to import the distribution of household size, income, 
   ### employment status, age group and ethnicity in the population.
   ## We use the age groups from the regression model, and order them in 
@@ -124,7 +128,7 @@ create_pop <- function(
   # Create population according to the type
   if(which_type == "at baseline"){
     ## type = baseline: Using one level for each variable, only ethnicity changes
-    pop_size <- round(tot_size / n_level) * n_level
+    pop_size <- round(tot_pop_size / n_level) * n_level
     df_indiv <- tibble(
       age = factor("18-24", levels = age_group_level),
       ethnicity_rural = rep(vec_ethnicity_rural, pop_size / n_level),
@@ -163,15 +167,31 @@ create_pop <- function(
     
     ## Divide and multiply by n_level, to make sure the number of replicates
     ## in rep(vec_ethnicity_rural, pop_size / n_level) is round
-    pop_size <- round(tot_size / n_level) * n_level
+    if(!is.null(each)) {
+      each_age <- each * length(vec_ethnicity_rural)
+      each_eth <- each * length(age_group_level)
+    }
+    if(!is.null(tot_pop_size)) pop_size <- round(tot_pop_size / n_level) * n_level
+    
     df_indiv <- tibble(
-      # Sample age from dt_age_eth
-      age = sample(dt_age_eth$age_group, size = pop_size, replace = TRUE, 
-                   prob = dt_age_eth$prop),
-      ethnicity_rural = rep(vec_ethnicity_rural, pop_size / n_level),
+      age = if(is.null(each)) {
+        # Sample age from dt_age_eth
+        sample(dt_age_eth$age_group, size = pop_size, replace = TRUE, 
+               prob = dt_age_eth$prop)
+      } else { 
+        factor(rep(age_group_level, each_age), levels = age_group_level)
+      },
+      ethnicity_rural = if(is.null(each)){
+        rep(vec_ethnicity_rural, pop_size / n_level) 
+      } else { 
+        factor(rep(vec_ethnicity_rural, each = each_eth), levels = vec_ethnicity_rural)
+      },
       day_week = "weekday",
       # Equal distribution of gender
-      p_gender = sample(c("Male", "Female"), pop_size, replace = TRUE)
+      p_gender = sample(
+        c("Male", "Female"), if(is.null(each)) pop_size else 
+          each * length(age_group_level) * length(vec_ethnicity_rural), 
+        replace = TRUE)
     ) |> 
       # Add an "ethnicity" column taking the first half of ethnicity_rural
       mutate(ethnicity = gsub("[_].*", "", ethnicity_rural)) |> 
@@ -207,7 +227,8 @@ create_pop <- function(
     ## type = ethnicity-stratified population: Using the distribution of each 
     ## variable in the population for each ethnicity.
     df_indiv <- tibble()
-    pop_size_i <- round(tot_size / length(vec_ethnicity_rural))
+    if(!is.null(tot_pop_size)) pop_size_i <- round(tot_pop_size / length(vec_ethnicity_rural))
+    
     
     for(i in vec_ethnicity_rural){
       # Extract the ethnicity level for i
@@ -228,14 +249,21 @@ create_pop <- function(
 
       df_indiv_i <- tibble(
         # Sample age from dt_age_eth_i
-        age = sample(dt_age_eth_i$age_group, 
+        age = if(is.null(each)) {
+          sample(dt_age_eth_i$age_group, 
                      size = pop_size_i, replace = TRUE, 
-                     prob = dt_age_eth_i$prop),
+                     prob = dt_age_eth_i$prop)
+          } else { 
+            factor(rep(age_group_level, each), levels = age_group_level)
+          },
         ethnicity_rural = i,
         ethnicity = ethnic_i,
         day_week = "weekday",
         # Equal distribution of gender
-        p_gender = sample(c("Male", "Female"), pop_size_i, replace = TRUE)
+        p_gender = sample(
+          c("Male", "Female"), 
+          if(is.null(each)) pop_size_i else each * length(age_group_level),
+          replace = TRUE)
       ) |> 
         rowwise() |> 
         # For each row, use dt_hh_size to draw the household size given the age
