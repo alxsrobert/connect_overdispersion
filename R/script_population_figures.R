@@ -12,7 +12,7 @@ cols <- c("#002973", "#ffdd00", "#d53880", "black", "#afb2b4")
 ## Define the size of the simulated population and the number of draws from the
 ## regression outputs
 pop_size <- 20000
-n_draws <- 200
+n_draws <- 5
 ethnicity <- c("Asian_Urban", "Black_Urban", "Mixed_Urban", "Other_Urban", 
                "White_Urban")
 region_sim <- "England"

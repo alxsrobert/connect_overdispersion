@@ -38,10 +38,6 @@ create_contact_in_pop <- function(
          Leicester, Liverpool, York")
   }
   
-
-  # For each individual, we use 5 random draws from the regression outputs,
-  # the size of the simulated population is therefore tot_size / 5
-  pop_size <- round(tot_size / 5)
   if(is.null(tot_pop_size) & is.null(each)) {
     stop("both tot_pop_size and each are null, specify one of the two")
   } else if(!is.null(tot_pop_size) & !is.null(each)) {
@@ -79,10 +75,6 @@ create_contact_in_pop <- function(
     ## Switch to long format
     pivot_longer(cols = starts_with("V"), values_to = "contact", names_to = NULL) |> 
     group_by(id_indiv) |> 
-    ## Add individual id to each draw
-    mutate(id = sample(x = n(), size = n())) |> 
-    ## Only select five of the draws, to end up with pop_size individuals
-    filter(id <= 5) |> 
     mutate(type = which_type) |> 
     group_by()
   
