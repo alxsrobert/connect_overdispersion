@@ -1,3 +1,135 @@
+#' Run a set of simulations using the SEIR transmission model
+#'
+#' @param n_pop_age_eth_mat 2-d numeric matrix showing the number of inhabitants per 
+#' age group (row) and ethnicity (column).
+#' @param mat_age Per capita transmission matrix by age.
+#' @param mat_eth Per capita transmission matrix by ethnicity.
+#' @param model 
+#' @param n_contact_age_eth_group 2-d numeric matrix: Average number of contacts  
+#' by age-ethnicity (row) and transmitter group (column).
+#' @param prop_indiv_age_eth_group 2-d numeric matrix: Proportion of the population
+#' in each level of age-ethnicity (row) by transmitter group (column) (i.e. 
+#' all(rowSums(prop_indiv_age_eth_group = 1))).
+#' @param t Time
+#' @param gamma Duration of infectious period.
+#' @param delta Duration of latent period.
+#' @param all_same binary: if TRUE, return an homogeneous mixing per capita 
+#' matrix (i.e. all cells have the same value).
+#' @param n_particles Number of simulations run with the SEIR model.
+#' @param beta Average number of contacts per person per time 
+#' @param r0 Basic reproduction number
+#' @param k clustering factor for high-contact individuals.
+#' @param return_only_r0 If set to TRUE, changes the function to return r0 after 
+#' computing it from beta, the per capita matrix, and gamma.
+#'
+#' @return A list of named arrays containing the number of individuals in each
+#' state, simulation, strata, and at each time step.
+function_run_simulations <- function(
+    n_pop_age_eth_mat, mat_age, mat_eth, model, n_contact_age_eth_group, 
+    prop_indiv_age_eth_group, t, gamma, delta, all_same, n_particles,
+    beta = NULL, r0 = NULL, k = 1, return_only_r0 = FALSE){
+  if(return_only_r0 & !is.null(r0)){
+    return_only_r0 <- FALSE
+    warning("setting return_only_r0 = FALSE as r0 is set in the arguments, provide beta instead and set r0 to NULL")
+  } else if (return_only_r0 & is.null(beta)){
+    stop("If return_only_r0 is set to TRUE, beta has to be provided, and the function will compute and return r0")
+  }
+  
+  ## Compute the per capita contact matrix between each strata (i.e. individual
+  ## combination of age group, ethnicity, and transmitter group)
+  per_cap_matrix <- 
+    get_per_capita(n_pop_age_eth_mat = n_pop_age_eth_mat, mat_age_per_cap = mat_age, 
+                   mat_eth_per_cap = mat_eth, all_same = all_same,
+                   n_contact_age_eth_group = n_contact_age_eth_group, 
+                   prop_indiv_age_eth_group = prop_indiv_age_eth_group,
+                   k = k
+    )
+  
+  # Extract the number of transmitter groups for each age group / ethnicity
+  n_group <- ncol(n_contact_age_eth_group)
+  
+  ## Compute the number of inhabitants in each column of the per capita matrix:
+  ## Multiply the proportion of inhabitant in each transmitter group by 
+  ## the number of inhabitants in each level of {age group, ethnicity}
+  n_pop_to <- matrix(round(c(
+    prop_indiv_age_eth_group * matrix(t(n_pop_age_eth_mat), 
+                                      nrow = nrow(mat_age) * ncol(mat_eth),
+                                      ncol = n_group))), 
+    nrow = prod(dim(prop_indiv_age_eth_group)), 
+    ncol = prod(dim(prop_indiv_age_eth_group)), 
+    byrow = TRUE)
+  ## Set column names (unique combination of ethnicity, age group, and transmitter group)
+  colnames(n_pop_to) <- paste0(
+    rep(paste0(rep(paste0("eth", seq_len(ncol(n_pop_age_eth_mat))), 
+                   nrow(n_pop_age_eth_mat)),
+               rep(paste0("age", seq_len(nrow(n_pop_age_eth_mat))), 
+                   each = ncol(n_pop_age_eth_mat))),
+        n_group),
+    rep(paste0("group", seq_len(n_group)), each = prod(dim(n_pop_age_eth_mat))))
+  
+  ## Generate initial number of exposed individuals (distribute ~ 30 infections
+  ## to reduce risk of early extinction)
+  prob <- rep(30/sum(n_pop_to[1,]), ncol(n_pop_to))
+  E0_vec <- rbinom(n = ncol(n_pop_to), size = n_pop_to[1,], prob = prob)
+  
+  
+  ## If there are any empty groups (i.e. level of populations with 0 inhabitants),
+  ## they are removed from n_pop_to and E0_vec, to avoid errors when running the
+  ## model
+  if(any(n_pop_to[1,] == 0)){
+    empty_groups <- which(n_pop_to[1,] == 0)
+    n_pop_to <- n_pop_to[-empty_groups, -empty_groups]
+    E0_vec <- E0_vec[-empty_groups]
+  }
+  
+  if(is.null(r0) & is.null(beta)){
+    stop("both r0 and beta are null, please specify one of the two")
+  } else if(!is.null(r0) & !is.null(beta)){
+    warning("values are assigned to both r0 and beta, the program is using beta and ignoring r0")
+    r0 <- Re(eigen(beta * n_pop_to * per_cap_matrix * gamma)$values[1])
+    message(paste0("r0 = ", round(r0, 3)))
+  } else if(is.null(beta)){
+    ### Compute beta from the next generation matrix: the next generation matrix
+    ### is computed from the per capita matrix, the duration of the infectious 
+    ### period, and the number of inhabitants in the infectee group
+    beta <- r0 / Re(eigen(n_pop_to * per_cap_matrix * gamma)$values[1])
+  } else if(return_only_r0) { 
+    ### Compute R0 from the next generation matrix: the next generation matrix
+    ### is computed from the per capita matrix, the duration of the infectious 
+    ### period, and the number of inhabitants in the infectee group
+    r0 <- Re(eigen(beta * n_pop_to * per_cap_matrix * gamma)$values[1])
+    return(r0)
+  }
+  
+  dt_i <- 1/10
+  ## Define the parameters of the SEIR model
+  sys <- dust2::dust_system_create(
+    model, pars = list(N = n_pop_to[1,],
+                       E0 = E0_vec,
+                       beta0 = beta, 
+                       gamma = 1/gamma, 
+                       delta = 1/delta,
+                       per_cap_matrix = per_cap_matrix,
+                       n_tot = nrow(per_cap_matrix)
+    )
+    , n_particles = n_particles, dt = dt_i
+  )
+  
+  ## Run the seir model
+  dust2::dust_system_set_state_initial(sys)
+  y <- dust2::dust_system_simulate(sys, t)
+  ## Extract trajectories
+  y <- dust2::dust_unpack_state(sys, y)
+  
+  ## Set names of each strata in y
+  y <- lapply(y, function(X){
+    rownames(X) <- rownames(per_cap_matrix)
+    return(X)
+  })
+  
+  return(y)
+}
+
 #' Simulate a synthetic population and group each level of age and ethnicity into
 #' transmitter groups.
 #'
