@@ -18,41 +18,69 @@ max_n_contacts <- 10000 # deliberately redundant
 source("https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/scripts/analyses/install_packages.R")
 source("https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/scripts/analyses/functions.R")
 source("https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/scripts/analyses/negative_binom/negative_binomial_fcns.R")
-source("https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/scripts/analyses/age_structure.R")
+
+# Read in ONS age structure data
+ons_data <- import(
+  "https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/data/age_structure_dat/ons_2022_age_structure.xlsx", 
+  skip = 5) |> 
+  filter(`Area name` == "UNITED KINGDOM") |> 
+  #Select columns age and population contains 2022
+  select("age" = Age, contains("2022")) |> 
+  # Sum across Female and Male columns
+  mutate(pop = `Mid-2022 population (Female)` + `Mid-2022 population (Male)`) |> 
+  select(age, pop)
+
+age_structure_fine <- ons_data |>
+  mutate(p_age_group = cut(age,
+                           right = F,
+                           breaks = age_breaks,
+                           labels = age_labels)) |> 
+  group_by(p_age_group) |>
+  summarise(
+    n = sum(pop),
+    proportion = n / sum(ons_data$pop))
+
+# from census 2021 (https://www.ons.gov.uk/peoplepopulationandcommunity/culturalidentity
+# /ethnicity/datasets/ethnicgroupbyageandsexinenglandandwales)
+eth_age_sex <- suppressWarnings(data.table(import(
+  "https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/data/age_structure_dat/ethnicgroupagesex11.xlsx",
+  sheet = 6, skip = 3)))
+eth_age_sex <- eth_age_sex[get(colnames(eth_age_sex)[1])=='K04000001',]
+
+eth_age_sex[grepl('100 or over', Age), Age := 100]
+
+c_to_0 <- function(v){if(length(v[v=='c']) > 0){v[v=='c'] <- 0; v}else{v}}
+eth_age_sex <- eth_age_sex[, lapply(.SD, c_to_0)]
+
+eth_age_sex[, 3:ncol(eth_age_sex)] <- lapply(eth_age_sex[, 3:ncol(eth_age_sex)], as.numeric)
+
+for(ethn in c('Asian','Black','Mixed','White','Other')){
+  for(sex in c('Female','Male')){
+    vec <- (substr(colnames(eth_age_sex),1,5) == ethn) & grepl(sex,colnames(eth_age_sex))
+    eth_age_sex$next_col <- rowSums(eth_age_sex[, ..vec])
+    colnames(eth_age_sex)[length(colnames(eth_age_sex))] <- paste0(ethn,'_',sex)
+  }
+}
+
+eth_age_sex <- eth_age_sex |> 
+  select('Age',contains('_')) |>
+  mutate('p_age_group' = cut(Age, breaks = age_breaks, labels = age_labels, right = F)) |> 
+  mutate('p_adult_child' = cut(Age, breaks = c(-Inf, 18, Inf), labels = c('Child','Adult'), right = F)) |> 
+  select(!Age) |> 
+  pivot_longer(!c(p_age_group, p_adult_child)) |> 
+  separate_wider_delim(name, delim = "_", names = c("p_ethnicity", "p_gender")) |> 
+  group_by(p_age_group, p_adult_child, p_ethnicity, p_gender) |> 
+  summarise(value = sum(value)) |> 
+  ungroup() |> 
+  mutate(proportion = value/sum(value)) |> 
+  complete(p_adult_child, p_age_group, p_ethnicity, p_gender,
+           fill = list(value = 0, proportion = 0))
 
 ## Import participant and contact data
-reconnect_participant_common <- import(
-  "https://zenodo.org/records/17257918/files/reconnect_participant_common.csv?download=1", 
-  show_col_types = F)
-reconnect_participant_extra <- import(
-  "https://zenodo.org/records/17257918/files/reconnect_participant_extra.csv?download=1", 
-  show_col_types = F)
-reconnect_participant_sday <- import(
-  "https://zenodo.org/records/17257918/files/reconnect_sday.csv?download=1", 
-  show_col_types = F)
-reconnect_participant_hh <- import(
-  "https://zenodo.org/records/17257918/files/reconnect_hh_common.csv?download=1", 
-  show_col_types = F)
-reconnect_contact_common <- import(
-  "https://zenodo.org/records/17257918/files/reconnect_contact_common.csv?download=1", 
-  show_col_types = F) |> 
-  filter(!is.na(cnt_age_exact)) # remove large group contacts
-reconnect_contact_extra <- import(
-  "https://zenodo.org/records/17257918/files/reconnect_contact_extra.csv?download=1", 
-  show_col_types = F) %>% 
-  filter(!is.na(cnt_location)) # remove large group contacts
+test <- socialmixr::get_survey('https://zenodo.org/records/17257918')
 
-reconnect_participant <- 
-  left_join(reconnect_participant_common, 
-            reconnect_participant_extra, 
-            by = 'part_id') |> 
-  left_join(reconnect_participant_sday, by = 'part_id') |> 
-  left_join(reconnect_participant_hh, by = 'hh_id')
-
-reconnect_contact <- 
-  left_join(reconnect_contact_common, 
-            reconnect_contact_extra, 
-            by = c('cont_id','part_id'))
+reconnect_participant <- as.data.frame(test$participants)
+reconnect_contact <- as.data.frame(test$contacts)
 
 ## Rename columns and changes breaks of p_age_group
 part <- reconnect_participant |> 
@@ -68,6 +96,7 @@ part <- reconnect_participant |>
       part_age_exact, breaks = age_breaks, labels = age_labels, right = F))
 
 contacts <- reconnect_contact |> 
+  filter(!is.na(cnt_age_group)) |> 
   rename(c_id = cont_id,
          p_id = part_id,
          c_location = cnt_location,
@@ -83,7 +112,7 @@ contacts <- reconnect_contact |>
 # load age weights for large_n
 polymod_wts <- polymod_weights(locations = "total")
 
-## Compute contact matrix
+## Compute age-stratified contact matrix
 nb_age_group <- nb_matrix_fit(
   participant_data = part,
   contact_data = contacts,
@@ -107,6 +136,7 @@ nb_age_group_norm <- map(
   )
 )
 
+## Compute ethnicity-stratified contact matrix
 nb_eth_group <- nb_matrix_fit(
   participant_data = part,
   contact_data = contacts,
@@ -135,27 +165,29 @@ save_matrices_values <-
   rbind(cbind(rbindlist(nb_age_group_norm), var = 'Age groups'),
         cbind(rbindlist(nb_eth_group_norm), var = 'Ethnicity groups'))
 # Extract mean and 95% CI of mean number of contacts
-save_matrices_values <- save_matrices_values %>% 
-  drop_na() %>% # remove 'Prefer not to say' ethnicity
-  group_by(var,c_location,p_var,c_var) %>% 
-  mutate(c_location = firstup(c_location)) %>%
+save_matrices_values <- save_matrices_values |> 
+  drop_na() |> # remove 'Prefer not to say' ethnicity
+  group_by(var,c_location,p_var,c_var) |> 
+  mutate(c_location = firstup(c_location)) |>
   summarise(mean = mean(mu),
             lower = quantile(mu, 0.025),
             upper = quantile(mu, 0.975))
 
 ## Pivor to wider 
-save_matrices_values_w <- save_matrices_values %>%
+save_matrices_values_w <- save_matrices_values |>
   pivot_wider(names_from = c_location, values_from = mean)
 
 # Reorganise groups
 save_matrices_values_w$p_var <- factor(
-  save_matrices_values_w$p_var, levels = c(age_labels, 'White','Asian','Black','Mixed','Other'))
+  save_matrices_values_w$p_var, 
+  levels = c(age_labels,'Asian','Black','Mixed','Other', 'White'))
 save_matrices_values_w$c_var <- factor(
-  save_matrices_values_w$c_var, levels = c(age_labels, 'White','Asian','Black','Mixed','Other'))
+  save_matrices_values_w$c_var, 
+  levels = c(age_labels,'Asian','Black','Mixed','Other', 'White'))
 
 # Reformat and return
-save_age_values_w <- save_matrices_values_w %>% 
-  arrange(p_var, c_var) %>% 
+save_age_values_w <- save_matrices_values_w |> 
+  arrange(p_var, c_var) |> 
   select(var, p_var, c_var, Total) |> 
   filter(var == "Age groups") |>
   group_by() |> 
@@ -163,8 +195,8 @@ save_age_values_w <- save_matrices_values_w %>%
   mutate(mean_mu = as.numeric(gsub("[ ].*", "", Total))) |> 
   select(p_var, c_var, mean_mu)
 
-save_eth_values_w <- save_matrices_values_w %>% 
-  arrange(p_var, c_var) %>% 
+save_eth_values_w <- save_matrices_values_w |> 
+  arrange(p_var, c_var) |> 
   select(var, p_var, c_var, Total) |> 
   filter(var == "Ethnicity groups") |>
   group_by() |> 
