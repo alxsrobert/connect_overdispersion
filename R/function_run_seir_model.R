@@ -32,7 +32,7 @@
 #' the number of contacts per individual, and compute the transmitter groups.
 #' @param each Alternative to pop_size_contact: define the size of the synthetic 
 #' population used to simulate the number of contacts per individual by specifying the 
-#' Population size at each level of age and ethnicity (e.g. each = 10000 draws 
+#' Population size at each level of age and ethnicity (e.g. each = 1000 draws 
 #' 1000 individuals for each level of age and ethnicity, leading to an overall 
 #' synthetic population of 55,000 inhabitants with 5 ethnicities and 11 age groups).
 #' @param n_group Number of transmitter groups (by default 3: low / medium / high)
@@ -384,7 +384,7 @@ function_run_simulations <- function(
 #' the number of contacts per individual, and compute the transmitter groups.
 #' @param each Alternative to pop_size_contact: define the size of the synthetic 
 #' population used to simulate the number of contacts per individual by specifying the 
-#' Population size at each level of age and ethnicity (e.g. each = 10000 draws 
+#' Population size at each level of age and ethnicity (e.g. each = 1000 draws 
 #' 1000 individuals for each level of age and ethnicity, leading to an overall 
 #' synthetic population of 55,000 inhabitants with 5 ethnicities and 11 age groups).
 #' @param seed integer: seed of the run
