@@ -19,6 +19,7 @@ source("https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_surv
 source("https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/scripts/analyses/functions.R")
 source("https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/scripts/analyses/negative_binom/negative_binomial_fcns.R")
 
+
 # Read in ONS age structure data
 ons_data <- import(
   "https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/data/age_structure_dat/ons_2022_age_structure.xlsx", 
@@ -39,6 +40,17 @@ age_structure_fine <- ons_data |>
   summarise(
     n = sum(pop),
     proportion = n / sum(ons_data$pop))
+
+# from census 2021 (https://www.ons.gov.uk/peoplepopulationandcommunity/
+# culturalidentity/ethnicity/bulletins/ethnicgroupenglandandwales/census2021)
+ons_ethnicity <- data.table(
+  p_ethnicity = c('Asian','Black','Mixed','White','Other'),
+  proportion = c(9.3,
+                 4.0,
+                 2.9,
+                 81.7,
+                 2.1)/100)
+
 
 # from census 2021 (https://www.ons.gov.uk/peoplepopulationandcommunity/culturalidentity
 # /ethnicity/datasets/ethnicgroupbyageandsexinenglandandwales)
@@ -76,11 +88,30 @@ eth_age_sex <- eth_age_sex |>
   complete(p_adult_child, p_age_group, p_ethnicity, p_gender,
            fill = list(value = 0, proportion = 0))
 
-## Import participant and contact data
-test <- socialmixr::get_survey('https://zenodo.org/records/17257918')
+age_sex_strata <- # Read in ONS age structure data
+  import(
+    "https://raw.githubusercontent.com/cmmid/reconnect_uk_social_contact_survey/main/data/age_structure_dat/ons_2022_age_structure.xlsx",
+    skip = 5) %>% 
+  filter(`Area name` == "UNITED KINGDOM") %>% 
+  #Select columns age and population contains 2022
+  select("age" = Age, contains("2022")) %>% 
+  rename(female = `Mid-2022 population (Female)`, male = `Mid-2022 population (Male)`) %>% 
+  pivot_longer(cols = c("female", "male"), names_to = "p_gender", values_to = "pop") %>% 
+  mutate(p_age_group = cut(age,
+                           right = F,
+                           # from 0 to 75+ by 5 year age groups
+                           breaks = age_breaks,
+                           labels = age_labels)) %>% 
+  group_by(p_age_group, p_gender) %>% 
+  summarise(
+    n = sum(pop),
+    proportion = n / sum(ons_data$pop)) %>% ungroup() 
 
-reconnect_participant <- as.data.frame(test$participants)
-reconnect_contact <- as.data.frame(test$contacts)
+## Import participant and contact data
+reconnect <- socialmixr::get_survey('https://zenodo.org/records/17257918')
+
+reconnect_participant <- as.data.frame(reconnect$participants)
+reconnect_contact <- as.data.frame(reconnect$contacts)
 
 ## Rename columns and changes breaks of p_age_group
 part <- reconnect_participant |> 
@@ -122,7 +153,8 @@ nb_age_group <- nb_matrix_fit(
   trunc = max_n_contacts,
   polymod_weighting = polymod_wts,
   weighting_vec = c("p_gender", "p_ethnicity", "day_week"),
-  locations = c("Total")
+  locations = c("Total"),
+  save = FALSE
 )
 
 # normalise wrt population structure
@@ -146,7 +178,8 @@ nb_eth_group <- nb_matrix_fit(
   trunc = max_n_contacts,
   polymod_weighting = polymod_wts,
   weighting_vec = c('p_gender','p_age_group','day_week'),
-  locations = c("Total")
+  locations = c("Total"), 
+  save = FALSE
 )
 
 # normalise wrt population structure
