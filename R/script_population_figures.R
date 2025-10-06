@@ -20,18 +20,20 @@ region_sim <- "England"
 ## Generate stochastic distribution of contacts in simulated populations
 all_prediction_pop <- rbind.data.frame(
   # At a given level
-  create_contact_in_pop(model_sim, pop_size, n_draws, "at baseline", seed = 1, 
+  create_contact_in_pop(model = model_sim, tot_pop_size = pop_size, 
+                        n_draws = n_draws, which_type =  "at baseline", seed = 1, 
                         vec_ethnicity_rural = ethnicity, region = region_sim) |> 
     select(ethnicity_rural, contact, type), 
   # In a simulated population (age distribution from UK population data,
   # income distribution by age from participant data)
-  create_contact_in_pop(model_sim, pop_size, n_draws, "population", seed = 1, 
+  create_contact_in_pop(model = model_sim, tot_pop_size = pop_size, 
+                        n_draws = n_draws, which_type = "population", seed = 1, 
                         vec_ethnicity_rural = ethnicity, region = region_sim) |>
     select(ethnicity_rural, contact, type),
   # In a simulated population (age distribution from UK population data by ethnicity, 
   # income distribution by age and ethnicity from participant data)
-  create_contact_in_pop(model_sim, pop_size, n_draws, 
-                        "ethnicity-stratified\n population", seed = 1, 
+  create_contact_in_pop(model = model_sim, tot_pop_size = pop_size, n_draws = n_draws,  
+                        which_type = "ethnicity-stratified\n population", seed = 1, 
                         vec_ethnicity_rural = ethnicity, region = region_sim) |>
     select(ethnicity_rural, contact, type)
 ) 
