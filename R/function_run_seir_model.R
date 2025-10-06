@@ -713,3 +713,69 @@ get_per_capita <- function(n_pop_age_eth_mat, mat_age_per_cap, mat_eth_per_cap,
   return(mat_contact_age_eth_group_per_cap) 
 }
 
+#' Run the SEIR model, compute the number and proportion of infected per ethnicity
+#' in each simulation.
+#'
+#' @param label Label of the simulation run
+#' @param ... Parameters relevant to run_outbreaks
+#'
+#' @return Data frame containing one row by ethnicity and iteration, and four
+#' columns: "ethnicity", "type" (which corresponds to the argument `label`),
+#' "proportion" the proportion of individuals of the ethnicity infected over the
+#' course of this iteration, and "n" the number of individuals of the ethnicity
+#'  infected over the course of this iteration
+run_and_aggreg_outbreak <- function(label, ...){
+  ## Run the stochastic simulations. y_run is a list of named arrays containing 
+  ## the number of individuals in each state, simulation, strata, and at each 
+  ## time step (output from function_run_simulations).
+  y_run <- run_outbreaks(...)
+  
+  ## Group by ethnicity
+  groups <- c("eth1", "eth2", "eth3", "eth4", "eth5") 
+  names(groups) <- c("Asian", "Black", "Mixed", "Other", "White")
+  
+  ## Line of code to ensure the function works if there's only 1 particle
+  if(is.matrix(y_run[[1]])) 
+    y_run <- lapply(y_run, function(x) 
+      return(array(x, dim = c(nrow(x), 1, ncol(x)))))
+  
+  ## Number of inhabitants per strata
+  n_pop <- (y_run$S + y_run$E + y_run$I + y_run$R)[,1,1]
+  
+  ## Compute the total number of individuals infected, by ethnicity
+  df_prop_eth <- data.frame()
+  
+  # Extract the number of time step
+  n_time <- dim(y_run$S)[3]
+  
+  # For each ethnicity:
+  for(i in seq_len(length(groups))){
+    # extract the rows of y_run$S that correspond to the current ethnicity
+    which_rows_i <- which(grepl(groups[i], rownames(y_run$S)))
+    
+    # The number of infected throughout the course of the outbreak is 
+    # the number of individuals in S at t=0 - number of individuals in S at the 
+    # last time step
+    n_infected <- 
+      if(length(which_rows_i) > 1) { 
+        (y_run$S[which_rows_i,, 1] + y_run$E[which_rows_i,, 1] -
+           y_run$S[which_rows_i,, n_time]) |> colSums()
+      } else {
+        (y_run$S[which_rows_i,, 1] + y_run$E[which_rows_i,, 1] -
+           y_run$S[which_rows_i,, n_time])
+      }
+    # The proportion of infection is the number of infected divided by the 
+    # number of inhabitants of ith ethnicity
+    prop_infected <- n_infected / sum(n_pop[which_rows_i])
+    
+    # Merge the current ethnicity, the label of this run, the proportion and 
+    # the number of infected into a dataframe df_i
+    df_i <- cbind.data.frame(ethnicity = names(groups)[i], 
+                             type = label, 
+                             proportion = prop_infected,
+                             n = n_infected)
+    df_prop_eth <- rbind.data.frame(df_prop_eth, df_i)
+  }
+  
+  return(df_prop_eth)
+}
