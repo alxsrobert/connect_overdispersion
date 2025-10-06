@@ -5,7 +5,7 @@ library(brms)
 library(flexmix)
 # Install odin2 and dust2 using:
 # install.packages(
-#   "odin2",
+#   c("odin2", "dust2"),
 #   repos = c("https://mrc-ide.r-universe.dev", "https://cloud.r-project.org"))
 library(odin2)
 library(dust2)
