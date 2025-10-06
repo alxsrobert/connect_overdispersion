@@ -1,3 +1,230 @@
+#' Set up and run a set of simulations using the SEIR transmission model
+#'
+#' @param n_particles Number of simulations run with the SEIR model.
+#' @param model dust compartmental model.
+#' @param t Time.
+#' @param seed integer: seed of the run
+#' @param r0 Basic reproduction number.
+#' @param beta Average number of contacts per person per time.
+#' @param gamma Duration of infectious period.
+#' @param delta Duration of latent period.
+#' @param region Region in which the synthetic population and SEIR simulations are 
+#' generated. It impacts the number of inhabitants in the population, the 
+#' distribution of ethnicity, age by ethnicity, household size, and employment 
+#' status. Must be one of England, London, Manchester, Birmingham, Leicester, 
+#' Liverpool, or York. The default value is "England".
+#' @param pop_size Size of the population in the SEIR model. If set to NULL (default),
+#' the population size is the number of inhabitants in the region.
+#' @param list_prop_coef list (output from create_contact_group). If set to NULL 
+#' (default), list_prop_coef is computed in run_outbreaks. If list_prop_coef is 
+#' provided, scenario_contact_group, tot_pop_size, anonymised, each, n_group, k, 
+#' which_model, n_draws are not used.
+#' @param scenario_contact_group Method used to generate the synthetic population and 
+#' the number of contact per individual. Can take one of the following values: 
+#' "same_mean": The coefficients of the regression analysis associated with the 
+#' impact of ethnicity on the mean number of contacts are set to 1, "same_od": 
+#' The coefficients of the regression analysis associated with the impact of 
+#' ethnicity on the dispersion are set to 1, "same_pop": The characteristics of
+#' the synthetic population are representative of the whole population 
+#' (instead of being ethnicity-specific), and "reference". The default value 
+#' is "reference". 
+#' @param pop_size_contact Overall size of the synthetic population used to simulate
+#' the number of contacts per individual, and compute the transmitter groups.
+#' @param each Alternative to pop_size_contact: define the size of the synthetic 
+#' population used to simulate the number of contacts per individual by specifying the 
+#' Population size at each level of age and ethnicity (e.g. each = 10000 draws 
+#' 1000 individuals for each level of age and ethnicity, leading to an overall 
+#' synthetic population of 55,000 inhabitants with 5 ethnicities and 11 age groups).
+#' @param n_group Number of transmitter groups (by default 3: low / medium / high)
+#' @param k clustering factor for high-contact individuals.
+#' @param which_model Character, defines which model from the list of regression 
+#' outputs should be used.
+#' @param n_draws Number of draws from the regression outputs used to simulate 
+#' the number of contacts
+#' @param same_age_distribution Binary, if TRUE: use the same age distribution
+#' for all ethnicities
+#' @param all_same Binary, if TRUE: The per capita transmission matrix stratified
+#' by age, ethnicity, and transmitter group is constant (i.e. homogeneous mixing
+#' between groups).
+#' @param all_eth Binary, if TRUE: The per capita transmission matrix stratified
+#' by ethnicity is constant (i.e. homogeneous mixing between ethnicities).
+#' @param all_same_coef Binary, if TRUE: All levels of age-ethnicity have the
+#' same distribution of low, medium and high transmitter, and the same number
+#' of contacts associated with each group.
+#' @param anonymised If set to TRUE, use the regression output from the anonymised data.
+#' @param return_only_r0 If set to TRUE, changes the function to return r0 after 
+#' computing it from beta, the per capita matrix, and gamma.
+#'
+#' @return A list of named arrays containing the number of individuals in each
+#' state, simulation, strata, and at each time step (output from function_run_simulations).
+run_outbreaks <- function(
+    same_age_distribution = FALSE, scenario_contact_group = "reference", all_same = FALSE,
+    all_eth = FALSE, all_same_coef = FALSE, n_group = 3, region = "England", 
+    k = 1, pop_size_contact = 2e4, r0 = NULL, beta = NULL, gamma = 5, delta = 3,
+    n_particles = 200, t = seq(0, 700), model = seir_stoch_strat, pop_size = NULL, 
+    seed = NULL, anonymised = FALSE, n_draws = 5, list_prop_coef = NULL, 
+    which_model = "full_od_cathh", each = 1000, return_only_r0 = FALSE){
+  ## If there is a seed, set the seed
+  if(!is.null(seed)) set.seed(seed)
+  
+  
+  if(is.null(list_prop_coef)){
+    ## Compute the contact groups for each age group and ethnicity
+    ## list_prop_coef contains two elements:
+    ## - prop: the proportion of inhabitants of a given age group and ethnicity
+    ##         that belongs to each transmitter group
+    ## - coef: the average number of contacts in each transmitter group of each
+    ##         level of age group and ethnicity
+    file_in <- paste0("results/regression_output", if(anonymised) "_anoun", ".rds")
+    list_prop_coef <- create_contact_group(
+      scenario_contact_group = scenario_contact_group, n_group = n_group, 
+      n_draws = n_draws, file_in = file_in, which_model = which_model, 
+      region = region, seed = NULL, tot_pop_size = pop_size_contact, each = each,
+      vec_ethnicity_rural = c("Asian_Urban", "Black_Urban", "Mixed_Urban", 
+                              "Other_Urban", "White_Urban"))
+  } else if(n_group != ncol(list_prop_coef$prop)) {
+    n_group <- ncol(list_prop_coef$prop)
+    warning(paste0("n_group is set to ", n_group, 
+                   " to match the number of groups in list_prop_coef"))
+  }
+  
+  ## Import age- and ethnicity-stratified per capita contact data from RECONNECT
+  contact_age <- readRDS("results/dt_contact_age.RDS")
+  contact_eth <- readRDS("results/dt_contact_eth.RDS")
+  
+  ## Turn contact_age and contact_eth into square matrices
+  contact_age <- contact_age[order(contact_age$p_var, contact_age$c_var),]
+  contact_eth <- contact_eth[order(contact_eth$p_var, contact_eth$c_var),]
+  matrix_age <- 
+    matrix(contact_age$mean_mu, 
+           nrow = length(unique(unique(contact_age$p_var))),
+           ncol = length(unique(unique(contact_age$p_var))),
+           dimnames = list(unique(contact_age$p_var),
+                           unique(contact_age$c_var)))
+  matrix_eth <- 
+    matrix(contact_eth$mean_mu, 
+           nrow = length(unique(unique(contact_eth$p_var))),
+           ncol = length(unique(unique(contact_eth$p_var))),
+           dimnames = list(tolower(unique(contact_eth$p_var)),
+                           tolower(unique(contact_eth$c_var))))
+  # Rename last column / row of matrix_age
+  rownames(matrix_age)[rownames(matrix_age) == "70+"] <- 
+    colnames(matrix_age)[rownames(matrix_age) == "70+"] <- "70-93"
+  
+  ## Extract all age groups, and re-arrange them to be in ascending order
+  all_age_groups <- rownames(matrix_age)
+  ## Remove NAs (if any)
+  all_age_groups <- 
+    all_age_groups[!is.na(as.numeric(gsub(".*[-+]", "", all_age_groups)))]
+  ## Order first half of all_age_groups
+  age_group_order <- order(as.numeric(gsub(".*[-+]", "", all_age_groups)))
+  ## Set all_age_groups in increasing order
+  age_group_level <- unique(all_age_groups)[age_group_order]
+  age_group_level <- paste0(
+    c(0, as.numeric(gsub(".*[-]", "", rev(rev(age_group_level)[-1]))) + 1),
+    "-", gsub(".*[-]", "", age_group_level)
+  )
+  
+  ## Re-arrange matrix_age to be in increasing order of age
+  matrix_age <- matrix_age[age_group_level, age_group_level]
+  
+  ## Extract the number of inhabitants per age group and ethnicity for the region
+  ## of interest
+  pop_data_ethnicity <- clean_age_eth(age_group_level, region) |> 
+    select(age_group, ethnicity, nb) |> 
+    filter(ethnicity != "All") |> 
+    mutate(ethnicity = paste0("nb_", ethnicity)) |> 
+    pivot_wider(names_from = ethnicity, values_from = nb)
+  
+  ## If same_age_distribution is TRUE, change the age distribution in pop_data_ethnicity
+  ## so the age distribution is the same across all ethnicities
+  if(same_age_distribution){
+    prop_age <- rowSums(pop_data_ethnicity[,-1]) / sum(pop_data_ethnicity[,-1])
+    nb_tot <- colSums(pop_data_ethnicity[,-1])
+    pop_data_ethnicity[, -1] <- round(outer(prop_age, nb_tot))
+  }
+  
+  ## If pop_size is set, change pop_data_ethnicity so the total number of inhabitants
+  ## is equal to pop_size.
+  if(!is.null(pop_size)){
+    pop_data_ethnicity[, -1] <- round(pop_data_ethnicity[-1] * pop_size / sum(pop_data_ethnicity[, -1]))
+  }
+  pop_size <- sum(pop_data_ethnicity[, -1])
+  
+  ## Project the per capita matrices (by age and ethnicity) into the current population
+  matrix_age <- matrix_age * 67596281 / pop_size
+  matrix_eth <- matrix_eth * 67596281 / pop_size
+  
+  ## If all_eth is TRUE, then set matrix_eth to be constant (homogeneous mixing)
+  ## between ethnicities
+  if(all_eth){
+    matrix_eth[, ] <- mean(matrix_eth)
+  }
+  
+  ## Change pop_data_ethnicity to be a numeric matrix
+  pop_data_ethnicity <- 
+    matrix(unlist(pop_data_ethnicity |> select(!age_group)), 
+           nrow = nrow(pop_data_ethnicity), ncol = ncol(pop_data_ethnicity) - 1,
+           dimnames = list(pop_data_ethnicity$age_group, 
+                           colnames(pop_data_ethnicity |> select(-age_group)))
+    )
+  
+  # reorganise matrix_eth
+  matrix_eth <- matrix_eth[
+    tolower(gsub("nb_", "", colnames(pop_data_ethnicity))),
+    tolower(gsub("nb_", "", colnames(pop_data_ethnicity)))]
+  
+  # Extract the proportion of population and mean number of contacts from list_prop_coef
+  prop <- list_prop_coef$prop
+  coef <- list_prop_coef$coef
+  
+  # Only select urban coeffients, and rename the rows
+  prop <- prop[grepl("Urban", rownames(prop)),]
+  coef <- coef[grepl("Urban", rownames(prop)),]
+  rownames(prop) <- tolower(gsub("_Urban", "", rownames(prop)))
+  rownames(coef) <- tolower(gsub("_Urban", "", rownames(coef)))
+  
+  # re-organise rows of coef and prop
+  prop <- prop[paste0(rep(rownames(matrix_age), each = nrow(matrix_eth)),
+                      rep(rownames(matrix_eth), nrow(matrix_age))),]
+  coef <- coef[paste0(rep(rownames(matrix_age), each = nrow(matrix_eth)),
+                      rep(rownames(matrix_eth), nrow(matrix_age))),]
+  
+  ## If all_same_coef is TRUE, set prop and coef to be the same for each level of
+  ## age group and ethnicity
+  if(all_same_coef){
+    ## Compute the mean weighted by the number of individuals in each group
+    n_per_group <- 
+      round(matrix(rep(c(pop_data_ethnicity), n_group), ncol = n_group) * prop)
+    tot_n <- rowSums(n_per_group)
+    n_eth <- nrow(matrix_eth)
+    for(i in seq_len(n_group)){
+      if (i < n_group){
+        ## Mean proportion 
+        prop[,i] <- rep(colSums(matrix(n_per_group[,i], nrow = n_eth)) / 
+                          colSums(matrix(tot_n, nrow = n_eth)), 
+                        each = n_eth)
+      } else prop[,i] <- 1 - rowSums(prop[, -n_group])
+      ## Mean number of contacts
+      coef[, i] <- 
+        rep(colSums(matrix(coef[, i], nrow = n_eth) * 
+                      matrix(n_per_group[, i], nrow = n_eth)) / 
+              colSums(matrix(n_per_group[, i], nrow = n_eth)), 
+            each = n_eth)
+    }
+    coef[is.na(coef)] <- 0
+  }
+  
+  ## Run the SEIR model
+  y_test <- function_run_simulations(
+    n_pop_age_eth_mat = pop_data_ethnicity, mat_age = matrix_age, 
+    mat_eth = matrix_eth, n_contact_age_eth_group = coef, 
+    prop_indiv_age_eth_group = prop, t = t, gamma = gamma, delta = delta, 
+    all_same = all_same, n_particles = n_particles, model = model, 
+    r0 = r0, beta = beta, k = k, return_only_r0 = return_only_r0)
+  return(y_test)
+}
+
 #' Run a set of simulations using the SEIR transmission model
 #'
 #' @param n_pop_age_eth_mat 2-d numeric matrix showing the number of inhabitants per 
