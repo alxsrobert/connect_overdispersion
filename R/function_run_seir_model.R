@@ -59,11 +59,11 @@
 #' state, simulation, strata, and at each time step (output from function_run_simulations).
 run_outbreaks <- function(
     same_age_distribution = FALSE, scenario_contact_group = "reference", all_same = FALSE,
-    all_eth = FALSE, all_same_coef = FALSE, n_group = 3, region = "England", 
-    k = 1, pop_size_contact = 2e4, r0 = NULL, beta = NULL, gamma = 5, delta = 3,
-    n_particles = 200, t = seq(0, 700), model = seir_stoch_strat, pop_size = NULL, 
-    seed = NULL, anonymised = FALSE, n_draws = 5, list_prop_coef = NULL, 
-    which_model = "full_od_cathh", each = 1000, return_only_r0 = FALSE){
+    all_eth = FALSE, n_group = 3, region = "England", k = 1, pop_size_contact = 2e4, 
+    r0 = NULL, beta = NULL, gamma = 5, delta = 3, n_particles = 200, t = seq(0, 700), 
+    model = seir_stoch_strat, pop_size = NULL, seed = NULL, anonymised = FALSE, 
+    n_draws = 5, list_prop_coef = NULL, which_model = "full_od_cathh", each = 1000, 
+    return_only_r0 = FALSE){
   ## If there is a seed, set the seed
   if(!is.null(seed)) set.seed(seed)
   
@@ -189,31 +189,6 @@ run_outbreaks <- function(
                       rep(rownames(matrix_eth), nrow(matrix_age))),]
   coef <- coef[paste0(rep(rownames(matrix_age), each = nrow(matrix_eth)),
                       rep(rownames(matrix_eth), nrow(matrix_age))),]
-  
-  ## If all_same_coef is TRUE, set prop and coef to be the same for each level of
-  ## age group and ethnicity
-  if(all_same_coef){
-    ## Compute the mean weighted by the number of individuals in each group
-    n_per_group <- 
-      round(matrix(rep(c(pop_data_ethnicity), n_group), ncol = n_group) * prop)
-    tot_n <- rowSums(n_per_group)
-    n_eth <- nrow(matrix_eth)
-    for(i in seq_len(n_group)){
-      if (i < n_group){
-        ## Mean proportion 
-        prop[,i] <- rep(colSums(matrix(n_per_group[,i], nrow = n_eth)) / 
-                          colSums(matrix(tot_n, nrow = n_eth)), 
-                        each = n_eth)
-      } else prop[,i] <- 1 - rowSums(prop[, -n_group])
-      ## Mean number of contacts
-      coef[, i] <- 
-        rep(colSums(matrix(coef[, i], nrow = n_eth) * 
-                      matrix(n_per_group[, i], nrow = n_eth)) / 
-              colSums(matrix(n_per_group[, i], nrow = n_eth)), 
-            each = n_eth)
-    }
-    coef[is.na(coef)] <- 0
-  }
   
   ## Run the SEIR model
   y_test <- function_run_simulations(

@@ -40,9 +40,25 @@ for(run in seq_len(nb_run)){
              "London", "England")){
     ## Create the transmitter groups from synthetic population
     list_prop_coef_sim <- create_contact_group(
-      scenario = "reference", n_group = 3, n_draws = 5, region = i, each = each_sim,
-      file_in = "results/regression_output.rds", which_model = "full_od_cathh", 
-      vec_ethnicity_rural = vec_ethnicity)
+      scenario_contact_group = "reference", n_group = 3, n_draws = 5, region = i, 
+      each = each_sim, file_in = "results/regression_output.rds", 
+      which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+    
+    if(i == "England"){
+      list_prop_coef_sim_same_mean <- create_contact_group(
+        scenario_contact_group = "same_mean", n_group = 3, n_draws = 5, 
+        region = "England", each = each_sim, file_in = "results/regression_output.rds", 
+        which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+      list_prop_coef_sim_same_pop <- create_contact_group(
+        scenario_contact_group = "same_pop", n_group = 3, n_draws = 5, 
+        region = "England", each = each_sim, file_in = "results/regression_output.rds", 
+        which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+      list_prop_coef_sim_same_all <- create_contact_group(
+        scenario_contact_group = "same_all", n_group = 3, n_draws = 5, 
+        region = "England", each = each_sim, file_in = "results/regression_output.rds", 
+        which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+    }
+    
     ## Use list_prop_coef_sim to generate n_particle outbreaks at different
     ## values of R0
     for(r0_i in seq(1.6, 8, .2)){
@@ -67,7 +83,7 @@ for(run in seq_len(nb_run)){
       y_result <- rbind.data.frame(y_result, y_i)
       
       ## If the region is England, we also generate simulations to analyse the 
-      ## impact of clustering, and the impact of changing the demographic characteristics
+      ## impact of changing demographic characteristics
       if(i == "England"){
         y_highclust <- run_and_aggreg_outbreak(
           label = paste0("highclust", "_", r0_i), 
@@ -84,36 +100,32 @@ for(run in seq_len(nb_run)){
         
         # Samemix: set the per capita matrix by ethnicity as constant.
         y_samemix <- run_and_aggreg_outbreak(
-          label = paste0("samemix", "_", r0_i),
-          list_prop_coef = list_prop_coef_sim,
+          label = paste0("samemix", "_", r0_i), list_prop_coef = list_prop_coef_sim,
           region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
           r0 = r0_i, all_eth = TRUE) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
                             length(vec_ethnicity)))
-        # Samecoef: set the coef and prop matrix from list_prop_coef_sim to
-        # be the same of all ethnicities
+        # Samecoef: set the ethnicity-related regression coefficients to 1
         y_samecoef <- run_and_aggreg_outbreak(
-          label = paste0("samecoef", "_", r0_i),
-          list_prop_coef = list_prop_coef_sim,
-          region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
-          r0 = r0_i, all_same_coef = TRUE) |>
+          label = paste0("samecoef", "_", r0_i), 
+          list_prop_coef = list_prop_coef_sim_same_mean, region = "England", k = 1, 
+          n_particles = n_particle_sim, t = t_sim, r0 = r0_i) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
                             length(vec_ethnicity)))
         # samepop: all ethnicities have the same age distribution
         y_samepop <- run_and_aggreg_outbreak(
-          label = paste0("samepop", "_", r0_i),
-          list_prop_coef = list_prop_coef_sim,
-          region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
-          r0 = r0_i, same_age_distribution = TRUE) |>
+          label = paste0("samepop", "_", r0_i), 
+          list_prop_coef = list_prop_coef_sim_same_pop, region = "England", k = 1, 
+          n_particles = n_particle_sim, t = t_sim, r0 = r0_i, same_age_distribution = TRUE) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
                             length(vec_ethnicity)))
         # samepopsamemix: all ethnicities have the same age distribution and
         # set the per capita matrix by ethnicity as constant.
         y_samepopsamemix <- run_and_aggreg_outbreak(
-          label = paste0("samepopsamemix", "_", r0_i),
-          list_prop_coef = list_prop_coef_sim,
-          region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
-          r0 = r0_i, same_age_distribution = TRUE, all_eth = TRUE) |>
+          label = paste0("samepopsamemix", "_", r0_i), 
+          list_prop_coef = list_prop_coef_sim_same_pop, region = "England", k = 1, 
+          n_particles = n_particle_sim, t = t_sim, r0 = r0_i, all_eth = TRUE,
+          same_age_distribution = TRUE) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
                             length(vec_ethnicity)))
         # samepopsamemixsamecoef: all ethnicities have the same age distribution,
@@ -121,9 +133,9 @@ for(run in seq_len(nb_run)){
         # prop matrix from list_prop_coef_sim to be the same of all ethnicities.
         y_samepopsamemixsamecoef <- run_and_aggreg_outbreak(
           label = paste0("samepopsamemixsamecoef", "_", r0_i),
-          list_prop_coef = list_prop_coef_sim,
+          list_prop_coef = list_prop_coef_sim_same_all,
           region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
-          r0 = r0_i, same_age_distribution = TRUE, all_eth = TRUE, all_same_coef = TRUE) |>
+          r0 = r0_i, same_age_distribution = TRUE, all_eth = TRUE) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), length(vec_ethnicity)))
         
         ## Add the number and proportion of infected by ethnicity to the summary
@@ -150,9 +162,9 @@ for(run in seq_len(nb_run)){
   )){
     ## Create the transmitter groups from synthetic population
     list_prop_coef_sim <- create_contact_group(
-      scenario = "reference", n_group = 3, n_draws = 5, region = i, each = each_sim,
-      file_in = "results/regression_output.rds", which_model = "full_od_cathh", 
-      vec_ethnicity_rural = vec_ethnicity)
+      scenario_contact_group = "reference", n_group = 3, n_draws = 5, region = i, 
+      each = each_sim, file_in = "results/regression_output.rds", 
+      which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
     for(j in seq_along(all_betas)){
       beta_j <- all_betas[j]
       # Compute r0 from beta_j and list_prop_coef_sim
@@ -187,9 +199,9 @@ for(run in seq_len(nb_run)){
 all_k <- c(seq(.2, 1, .1), seq(2, 5, .5))
 for(run in seq_len(nb_run)){
   list_prop_coef_england <- create_contact_group(
-    scenario = "reference", n_group = 3, n_draws = 5, region = "England", each = each_sim, 
-    file_in = "results/regression_output.rds", which_model = "full_od_cathh", 
-    vec_ethnicity_rural = vec_ethnicity)
+    scenario_contact_group = "reference", n_group = 3, n_draws = 5, region = "England", 
+    each = each_sim, file_in = "results/regression_output.rds", 
+    which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
   
   for(i in seq_along(all_k)){
     k_i <- all_k[i]
