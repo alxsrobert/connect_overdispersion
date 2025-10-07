@@ -85,19 +85,6 @@ for(run in seq_len(nb_run)){
       ## If the region is England, we also generate simulations to analyse the 
       ## impact of changing demographic characteristics
       if(i == "England"){
-        y_highclust <- run_and_aggreg_outbreak(
-          label = paste0("highclust", "_", r0_i), 
-          list_prop_coef = list_prop_coef_sim, region = "England", k = 2, 
-          n_particles = n_particle_sim, t = t_sim, r0 = r0_i) |>
-          mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim),
-                            length(vec_ethnicity)))
-        y_lowclust <- run_and_aggreg_outbreak(
-          label = paste0("lowclust", "_", r0_i), 
-          list_prop_coef = list_prop_coef_sim, region = "England", k = .5, 
-          n_particles = n_particle_sim, t = t_sim, r0 = r0_i) |>
-          mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
-                            length(vec_ethnicity)))
-        
         # Samemix: set the per capita matrix by ethnicity as constant.
         y_samemix <- run_and_aggreg_outbreak(
           label = paste0("samemix", "_", r0_i), list_prop_coef = list_prop_coef_sim,
@@ -141,8 +128,8 @@ for(run in seq_len(nb_run)){
         ## Add the number and proportion of infected by ethnicity to the summary
         ## data frame
         y_result <- rbind.data.frame(
-          y_result, y_highclust, y_lowclust, y_samemix, y_samecoef, y_samepop, 
-          y_samepopsamemix, y_samepopsamemixsamecoef
+          y_result, y_samemix, y_samecoef, y_samepop, y_samepopsamemix, 
+          y_samepopsamemixsamecoef
         )
         gc()
       }
