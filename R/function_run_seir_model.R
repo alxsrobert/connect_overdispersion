@@ -26,8 +26,8 @@
 #' The coefficients of the regression analysis associated with the impact of 
 #' ethnicity on the dispersion are set to 1, "same_pop": The characteristics of
 #' the synthetic population are representative of the whole population 
-#' (instead of being ethnicity-specific), and "reference". The default value 
-#' is "reference". 
+#' (instead of being ethnicity-specific), "same_all": combines same_mean and 
+#' same_pop and "reference". The default value is "reference". 
 #' @param pop_size_contact Overall size of the synthetic population used to simulate
 #' the number of contacts per individual, and compute the transmitter groups.
 #' @param each Alternative to pop_size_contact: define the size of the synthetic 
@@ -48,9 +48,6 @@
 #' between groups).
 #' @param all_eth Binary, if TRUE: The per capita transmission matrix stratified
 #' by ethnicity is constant (i.e. homogeneous mixing between ethnicities).
-#' @param all_same_coef Binary, if TRUE: All levels of age-ethnicity have the
-#' same distribution of low, medium and high transmitter, and the same number
-#' of contacts associated with each group.
 #' @param anonymised If set to TRUE, use the regression output from the anonymised data.
 #' @param return_only_r0 If set to TRUE, changes the function to return r0 after 
 #' computing it from beta, the per capita matrix, and gamma.
@@ -342,8 +339,8 @@ function_run_simulations <- function(
 #' The coefficients of the regression analysis associated with the impact of 
 #' ethnicity on the dispersion are set to 1, "same_pop": The characteristics of
 #' the synthetic population are representative of the whole population 
-#' (instead of being ethnicity-specific), and "reference". The default value 
-#' is "reference". 
+#' (instead of being ethnicity-specific), "same_all": combines same_mean and 
+#' same_pop and "reference". The default value is "reference". 
 #' @param n_group Number of transmitter groups (by default 3: low / medium / high)
 #' @param n_draws Number of draws from the regression results used to simulate the number of contacts
 #' @param file_in Path to the regression output file.
@@ -373,15 +370,15 @@ create_contact_group <- function(
     scenario_contact_group, n_group, n_draws, file_in, which_model, 
     vec_ethnicity_rural, region, tot_pop_size = NULL, each = NULL, seed = NULL){
   # CHECK scenario_contact_group is among the possible values
-  if(!scenario_contact_group %in% c("same_mean", "same_od", "same_pop", "reference"))
-    stop("scenario_contact_group must be one of `same_mean`, `same_od`, `same_pop,` or 
-         `reference`")
+  if(!scenario_contact_group %in% c("same_mean", "same_od", "same_pop", "same_all", "reference"))
+    stop("scenario_contact_group must be one of `same_mean`, `same_od`, `same_pop`, 
+    `same_all` or `reference`")
   
   # Import the regression model
   model <- readRDS(file_in)[[which_model]]
   
   
-  if(scenario_contact_group == "same_mean") {
+  if(scenario_contact_group %in% c("same_mean", "same_all")) {
     ## If scenario_contact_group is same_mean, change the values of coefficients
     ## associated with ethnicity
     
@@ -395,8 +392,7 @@ create_contact_group <- function(
                function(X) return(X * 0))
     }
   } else if(scenario_contact_group == "same_od") {
-    ## If scenario_contact_group is same_mean, change the values of coefficients
-    ## associated with ethnicity and shape
+    ## If scenario_contact_group is same_od, change the values of the shape coefficients
     # Extract parameters associated with ethnicity (OD only)
     pars_ethnicity <- 
       grep("shape_ethnicity", names(model$fit@sim$samples[[1]]))
@@ -418,7 +414,8 @@ create_contact_group <- function(
     create_contact_in_pop(
       model = model, tot_pop_size = tot_pop_size, n_draws = n_draws, region = region,
       vec_ethnicity_rural = vec_ethnicity_rural, each = each,
-      which_type = if(scenario_contact_group == "same_pop") "population" else "ethnicity-stratified\n population",
+      which_type = if(scenario_contact_group %in% c("same_pop", "same_all")) 
+        "population" else "ethnicity-stratified\n population",
       seed = seed) |> 
     select(ethnicity_rural, p_age_group, contact)
   
