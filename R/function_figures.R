@@ -519,7 +519,7 @@ figure_plot_total_simulations <- function(y, groups_age, groups_eth,
   # 5- Overall number of infected by groups_transmission
   # 6- Overall proportion of infected by groups_transmission
   par(mfrow = c(3,2), bty = "l", mar = c(3, 4, 3, 0), oma = c(3,1,0,1))
-  browser()
+  
   ## Compute the total number and proportion of individuals infected over the 
   ## course of the outbreak by age group
   # Initialise the matrices
