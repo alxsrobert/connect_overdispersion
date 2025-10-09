@@ -110,8 +110,12 @@ create_pop <- function(
   ### employment status, age group and ethnicity in the population.
   ## We use the age groups from the regression model, and order them in 
   ## increasing order.
-  all_age_groups <- model$data$p_age_group |> 
-    unique() |> as.character()
+  all_age_groups <- c("18-24",
+    grepv("p_age_group", model$fit@sim$fnames_oi) |> 
+    gsub(pattern = "b_p_age_group", replacement = "") |> 
+    gsub(pattern = "M", replacement = "-")
+  )
+  
   age_group_order <- order(as.numeric(gsub(".*[-+]", "", all_age_groups)))
   age_group_level <- unique(all_age_groups)[age_group_order]
   
