@@ -366,3 +366,244 @@ figure_density <- function(prediction_populations, prop_above = 0, log = TRUE,
   return(gg)
 }
 
+#' Plot the outbreak trajectories in each group
+#'
+#' @param y list of named 3-d array, returned by run_outbreaks and 
+#' function_run_simulations. Contains the number of individuals in each state, 
+#' simulation, strata, and at each time step.
+#' @param cols Colour associated with each group
+#' @param t Numeric vector of length 2 showing the time span of the plots
+#' @param groups List of numeric vectors, indicates the rows of each element 
+#' of y that belong to each group. For instance, if groups = list(c(1,2), c(3,4)),
+#' the first and second populations in y belong to group 1, the third and fourth 
+#' belong to group 2. All figures will show the aggregated number of new cases
+#' (or susceptible individuals) in each group.
+#' @param ymax_n_i upper limit of the y-axis in panel 1.
+#' @param ymax_prop_i upper limit of the y-axis in panel 3.
+#' @param verbose If TRUE, print the overall number of cases in the outbreak.
+#'
+#' @returns Basic R plot with four panels:
+#' 1- daily number of infected cases in each level of "groups" per day
+#' 2- daily overall number of infected cases per day
+#' 3- daily incidence in each level of "groups" per day
+#' 4- Number of susceptible individuals in each level of "groups" per day
+figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA, 
+                                    ymax_prop_i = NA, verbose = TRUE){
+  ## Line of code to ensure the plotting function works if there's only 1 particle
+  if(is.matrix(y[[1]])) 
+    y <- lapply(y, function(x) return(array(x, dim = c(nrow(x), 1, ncol(x)))))
+  
+  ## Number of inhabitants per strata
+  n_pop <- (y$S + y$E + y$I + y$R)[,1,1]
+  
+  # Only plot 10 of the trajectories
+  sample_sim <- sample(seq_len(ncol(y$S)), min(10, ncol(y$S)))
+  
+  ## Four panels
+  # 1- daily number of infected cases in each level of "groups" per day
+  # 2- daily overall number of infected cases per day
+  # 3- daily incidence  in each level of "groups" per day
+  # 4- Number of susceptible individuals in each level of "groups" per day
+  par(mfrow = c(2,2), bty = "l", mar = c(3, 4, 3, 0), oma = c(3,1,0,1))
+  
+  ## Panel 1: daily number of new cases per group
+  # start with group 1
+  plot_y <- matrix(if(length(groups[[1]]) > 1) y$new_cases[groups[[1]],,] |> colSums() else 
+    y$new_cases[groups[[1]],,], ncol = length(t))
+  
+  matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", 
+          ylab = "new Infected", col = cols[1], lty = 1, ylim = c(0, ymax_n_i))
+  # add other groups to the plot
+  for(i in 2:length(groups)){
+    plot_y <- matrix(if(length(groups[[i]]) > 1) y$new_cases[groups[[i]],,] |> colSums() else 
+      y$new_cases[groups[[i]],,], ncol = length(t))
+    matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", 
+            ylab = "new Infected", col = cols[i], lty = 1, add = TRUE)
+  }
+  # add legend
+  legend("topright", col = cols, lwd = 2, legend = names(groups), bty = "n")
+  
+  ## Panel 2: Daily number of new cases in the whole population
+  matplot(t, t(matrix(y$new_cases |> colSums(), ncol = length(t))[sample_sim,]), 
+          type = "l", xlab = "Time", ylab = "Total new infected", 
+          col = "black", lty = 1, 
+          ylim = c(0, max(colSums(y$new_cases)) * 1.5))
+  
+  ## Panel 3: Daily proportion of new cases in each group
+  plot_y <- matrix(if(length(groups[[1]]) > 1) y$new_cases[groups[[1]],,] |> colSums() else 
+    y$new_cases[groups[[1]],,], ncol = length(t))
+  
+  # Start with group 1
+  matplot(t, t(plot_y[sample_sim,]) / sum(n_pop[groups[[1]]]), type = "l", 
+          xlab = "Time", ylab = "new infected, proportion", col = cols[1],
+          lty = 1, ylim = c(0, ymax_prop_i), las = 1)
+  # Add other groups
+  for(i in 2:length(groups)){
+    plot_y <- matrix(if(length(groups[[i]]) > 1) y$new_cases[groups[[i]],,] |> colSums() else 
+      y$new_cases[groups[[i]],,], ncol = length(t))
+    matplot(t, t(plot_y[sample_sim,]) / sum(n_pop[groups[[i]]]), type = "l", 
+            xlab = "Time", col = cols[i], lty = 1, add = TRUE)
+  }
+  
+  ## Panel 4: Number of susceptible through time per group
+  plot_y <- matrix(if(length(groups[[1]]) > 1) y$S[groups[[1]],,] |> colSums() else 
+    y$S[groups[[1]],,], ncol = length(t))
+  
+  matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", 
+          ylab = "Susceptible", col = cols[1], lty = 1, 
+          ylim = c(0, sum(n_pop) * .9), lwd = 2)
+  for(i in 2:length(groups)){
+    plot_y <- matrix(if(length(groups[[i]]) > 1) y$S[groups[[i]],,] |> colSums() else 
+      y$S[groups[[i]],,], ncol = length(t))
+    matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", col = cols[i], 
+            lty = 1, add = TRUE, lwd = 2)
+  }
+  
+  # If verbose is TRUE, print the total number of cases and proportion of the population
+  # that got infected over the course of the outbreak
+  if(verbose){
+    n_cases <- sum(n_pop) - colSums(matrix(y$S[,,length(t)], ncol = ncol(y$S)))
+    
+    print(
+      paste0("Overall number of cases: ", round(median(n_cases)), " [",
+             round(quantile(n_cases, .025)), ", ", 
+             round(quantile(n_cases, .975)), "]"
+      ))
+    
+    print(paste0("Proportion of population infected: ",
+                 round(median(n_cases / sum(n_pop)), 3), " [",
+                 round(quantile(n_cases / sum(n_pop), .025), 3), ", ",
+                 round(quantile(n_cases / sum(n_pop), .975), 3), "]%"))
+  }
+  title(xlab = "Time", outer = TRUE, line = - 0.5, cex.lab = 1)
+  
+}
+
+#' Boxplot showing the overall number of cases per group
+#'
+#' @param y list of named 3-d array, returned by run_outbreaks and 
+#' function_run_simulations. Contains the number of individuals in each state, 
+#' simulation, strata, and at each time step.
+#' @param groups_age List of numeric vectors, indicates the rows of each element 
+#' of y that belong to each age group. For instance, if groups = list(c(1,2), c(3,4)),
+#' the first and second populations in y belong to the first age group, the 
+#' third and fourth to the second age group. 
+#' @param groups_eth List of numeric vectors, indicates the rows of each element 
+#' of y that belong to each ethnic group. For instance, if groups = list(c(1,2), c(3,4)),
+#' the first and second populations in y belong to the first ethnic group, the 
+#' third and fourth to the second ethnic group. 
+#' @param groups_transmission List of numeric vectors, indicates the rows of each element 
+#' of y that belong to each transmitter group. For instance, if groups = list(c(1,2), c(3,4)),
+#' the first and second populations in y belong to the first transmitter group, the 
+#' third and fourth to the second transmitter group. 
+#' @param verbose If TRUE, return the proportion of the population infected over
+#' the course of the outbreak in each ethnic group.
+#'
+#' @returns Six boxplot panels, showing the number and proportion of cases infected
+#' by age group, ethnic group, and transmitter group.
+figure_plot_total_simulations <- function(y, groups_age, groups_eth, 
+                                          groups_transmission, verbose = TRUE){
+  ## Line of code to ensure the plotting function works if there's only 1 particle
+  if(is.matrix(y[[1]])) 
+    y <- lapply(y, function(x) return(array(x, dim = c(nrow(x), 1, ncol(x)))))
+  
+  ## Number of inhabitants per strata
+  n_pop <- (y$S + y$E + y$I + y$R)[,1,1]
+  n_time <- dim(y$S)[3]
+  
+  ## Six panels
+  # 1- Overall number of infected by groups_age
+  # 2- Overall proportion of infected by groups_age
+  # 3- Overall number of infected by groups_eth
+  # 4- Overall proportion of infected by groups_eth
+  # 5- Overall number of infected by groups_transmission
+  # 6- Overall proportion of infected by groups_transmission
+  par(mfrow = c(3,2), bty = "l", mar = c(3, 4, 3, 0), oma = c(3,1,0,1))
+  
+  ## Compute the total number and proportion of individuals infected over the 
+  ## course of the outbreak by age group
+  # Initialise the matrices
+  mat_nb_age <- matrix(nrow = length(groups_age), ncol = ncol(y$new_cases))
+  mat_prop_age <- matrix(nrow = length(groups_age), ncol = ncol(y$new_cases))
+  for(i in 1:length(groups_age)){
+    ## Compute the total number of infected
+    mat_nb_age[i,] <- 
+      if(length(groups_age[[i]]) > 1) {
+        (y$S[groups_age[[i]],,1] - y$S[groups_age[[i]],,n_time]) |> colSums()        
+      } else {
+        (y$S[groups_age[[i]],,1] - y$S[groups_age[[i]],,n_time])        
+      }
+    ## Compute the proportion of infected individuals
+    mat_prop_age[i,] <- 
+      if(length(groups_age[[i]]) > 1) {
+        ((y$S[groups_age[[i]],,1] - y$S[groups_age[[i]],,n_time]) |> 
+           colSums()) / sum(n_pop[groups_age[[i]]])
+      } else {
+        (y$S[groups_age[[i]],,1] - y$S[groups_age[[i]],,n_time])/ 
+          sum(n_pop[groups_age[[i]]])
+      }
+  }
+  # Set rownames
+  rownames(mat_nb_age) <- rownames(mat_prop_age) <- names(groups_age)
+  
+  ## Do the same as before, by ethnic groups
+  mat_nb_eth <- matrix(nrow = length(groups_eth), ncol = ncol(y$new_cases))
+  mat_prop_eth <- matrix(nrow = length(groups_eth), ncol = ncol(y$new_cases))
+  for(i in 1:length(groups_eth)){
+    mat_nb_eth[i,] <- 
+      if(length(groups_eth[[i]]) > 1) {
+        (y$S[groups_eth[[i]],,1] - y$S[groups_eth[[i]],,n_time]) |> colSums()        
+      } else {
+        (y$S[groups_eth[[i]],,1] - y$S[groups_eth[[i]],,n_time])        
+      }
+    mat_prop_eth[i,] <- 
+      if(length(groups_eth[[i]]) > 1) {
+        ((y$S[groups_eth[[i]],,1] - y$S[groups_eth[[i]],,n_time]) |> 
+           colSums()) / sum(n_pop[groups_eth[[i]]])
+      } else {
+        (y$S[groups_eth[[i]],,1] - y$S[groups_eth[[i]],,n_time])/ 
+          sum(n_pop[groups_eth[[i]]])
+      }
+  }
+  rownames(mat_nb_eth) <- rownames(mat_prop_eth) <- names(groups_eth)
+  
+  ## Do the same as before, by transmitter groups
+  mat_nb_transmission <- matrix(nrow = length(groups_transmission), ncol = ncol(y$new_cases))
+  mat_prop_transmission <- matrix(nrow = length(groups_transmission), ncol = ncol(y$new_cases))
+  for(i in 1:length(groups_transmission)){
+    mat_nb_transmission[i,] <- 
+      if(length(groups_transmission[[i]]) > 1) {
+        (y$S[groups_transmission[[i]],,1] - 
+           y$S[groups_transmission[[i]],,n_time]) |> colSums()        
+      } else {
+        (y$S[groups_transmission[[i]],,1] - y$S[groups_transmission[[i]],,n_time])        
+      }
+    mat_prop_transmission[i,] <- 
+      if(length(groups_transmission[[i]]) > 1) {
+        ((y$S[groups_transmission[[i]],,1] - y$S[groups_transmission[[i]],,n_time]) |> 
+           colSums()) / sum(n_pop[groups_transmission[[i]]])
+      } else{
+        (y$S[groups_transmission[[i]],,1] - y$S[groups_transmission[[i]],,n_time])/ 
+          sum(n_pop[groups_transmission[[i]]])
+      }
+  }
+  rownames(mat_nb_transmission) <- rownames(mat_prop_transmission) <- names(groups_transmission)
+  
+  ## Generate boxplots for each group type
+  boxplot(t(mat_nb_age), ylim = c(0, max(mat_nb_age) * 1.2))
+  boxplot(t(mat_prop_age), ylim = c(0, 1))
+  boxplot(t(mat_nb_eth), ylim = c(0, max(mat_nb_eth) * 1.2))
+  boxplot(t(mat_prop_eth), ylim = c(0, 1))
+  boxplot(t(mat_nb_transmission), ylim = c(0, max(mat_nb_transmission) * 1.2))
+  boxplot(t(mat_prop_transmission), ylim = c(0, 1))
+  
+  title(xlab = "Group", outer = TRUE, line = - 0.5, cex.lab = 2)
+  title(ylab = "Number / Proportion of cases", outer = TRUE, line = - 1, 
+        cex.lab = 2)
+  
+  ## If verbose is TRUE, print the proportion of individuals infected by ethnic group
+  if(verbose) {
+    print(mat_prop_eth |> apply(1, summary) |> round(3) |> t())
+    
+  }
+}
