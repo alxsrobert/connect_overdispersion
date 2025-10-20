@@ -4,7 +4,7 @@
 ## Inputs:
 ## - N (vector): Population size per strata
 ## - E0 (vector): Number of exposed at t=0 per strata
-## - beta0 (numeric): Average number of contacts 
+## - beta0 (numeric): Transmissibility rate 
 ## - gamma (numeric): 1 / Infectious period
 ## - delta (numeric): 1 / Latent period
 ## - per_cap_matrix (Matrix): Per capita contact matrix.

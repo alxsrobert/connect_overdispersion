@@ -5,7 +5,7 @@
 #' @param t Time.
 #' @param seed integer: seed of the run
 #' @param r0 Basic reproduction number.
-#' @param beta Average number of contacts per person per time.
+#' @param beta Transmissibility rate.
 #' @param gamma Duration of infectious period.
 #' @param delta Duration of latent period.
 #' @param region Region in which the synthetic population and SEIR simulations are 
@@ -221,7 +221,7 @@ run_outbreaks <- function(
 #' @param all_same binary: if TRUE, return an homogeneous mixing per capita 
 #' matrix (i.e. all cells have the same value).
 #' @param n_particles Number of simulations run with the SEIR model.
-#' @param beta Average number of contacts per person per time 
+#' @param beta Transmissibility rate.
 #' @param r0 Basic reproduction number
 #' @param k clustering factor for high-contact individuals.
 #' @param return_only_r0 If set to TRUE, changes the function to return r0 after 
