@@ -56,16 +56,22 @@
 #' state, simulation, strata, and at each time step (output from function_run_simulations).
 run_outbreaks <- function(
     same_age_distribution = FALSE, scenario_contact_group = "reference", all_same = FALSE,
-    all_eth = FALSE, n_group = 3, region = "England", k = 1, pop_size_contact = 2e4, 
+    all_eth = FALSE, n_group = 3, region = "England", k = 1, pop_size_contact = NULL, 
     r0 = NULL, beta = NULL, gamma = 5, delta = 3, n_particles = 200, t = seq(0, 700), 
     model = seir_stoch_strat, pop_size = NULL, seed = NULL, anonymised = FALSE, 
-    n_draws = 5, list_prop_coef = NULL, which_model = "full_od_cathh", each = 1000, 
+    n_draws = 5, list_prop_coef = NULL, which_model = "full_od_cathh", each = NULL, 
     return_only_r0 = FALSE){
   ## If there is a seed, set the seed
   if(!is.null(seed)) set.seed(seed)
   
   
   if(is.null(list_prop_coef)){
+    if(is.null(pop_size_contact) & is.null(each)) {
+      stop("both pop_size_contact and each are null, specify one of the two")
+    } else if(!is.null(pop_size_contact) & !is.null(each)) {
+      warning("values are assigned to both pop_size_contact and each, the program is using each and ignoring tot_pop_size")
+    }
+    
     ## Compute the contact groups for each age group and ethnicity
     ## list_prop_coef contains two elements:
     ## - prop: the proportion of inhabitants of a given age group and ethnicity
