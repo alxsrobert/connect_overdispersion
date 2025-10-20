@@ -13,7 +13,8 @@ y_result <-
   y_result |> 
   mutate(r0 = as.numeric(gsub(".*[_]", "", type)),
          type = gsub("[_].*", "", type)
-  )
+  ) |> 
+  filter(r0 > 1)
 
 ## select only outbreaks where the number of cases exceeded 500 cases
 y_result <- 
@@ -242,7 +243,7 @@ r0_by_region <-
               rename(ref = r0) |> select(-type, -prop)) |> 
   mutate(percent_change = r0/ref - 1) |> 
   filter(type != "England", !is.na(percent_change)) |> 
-  group_by(type, beta) |> 
+  group_by(type) |> 
   ## Compute the median and 95% SI
   summarise(med = median(percent_change),
             low_95 = quantile(percent_change, 0.025),
