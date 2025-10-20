@@ -397,7 +397,7 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
   n_pop <- (y$S + y$E + y$I + y$R)[,1,1]
   
   # Only plot 10 of the trajectories
-  sample_sim <- sample(seq_len(ncol(y$S)), 10)
+  sample_sim <- sample(seq_len(ncol(y$S)), min(10, ncol(y$S)))
   
   ## Four panels
   # 1- daily number of infected cases in each level of "groups" per day

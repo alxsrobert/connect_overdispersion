@@ -4,10 +4,11 @@ source("R/library_and_scripts.R")
 
 n_group <- 3 # Define the number of transmitter groups (by default we use 3)
 t_sim <- seq(0, 700) # Time  frame of the stochastic simulations
+nsim <- 50
 
 # Generate one set of 50 simulations, with r0 = 1.4
 y_per_t <- run_outbreaks(n_group = n_group, t = t_sim, r0 = 1.4, region = "England",
-                        n_particles = 50, each = 200
+                        n_particles = nsim, each = 200
 )
 
 ## Compute aggregate number of cases across ethnicites at r0 = 2, 3, 4, and 5
@@ -17,9 +18,9 @@ y_result <- data.frame()
 for(ro_i in c(2, 3, 4, 5)){
   y_aggreg <- run_and_aggreg_outbreak(
     label = paste0("example_", ro_i), n_group = n_group, t = t_sim, r0 = ro_i, 
-    region = "England", n_particles = 50, each = 200
+    region = "England", n_particles = nsim, each = 200
   ) |>
-    mutate(iter = rep(seq(1, 50), length(vec_ethnicity)))
+    mutate(iter = rep(seq(1, nsim), length(vec_ethnicity)))
   ## Add the number and proportion of infected by ethnicity to the summary
   ## data frame
   y_result <- rbind.data.frame(y_result, y_aggreg)
