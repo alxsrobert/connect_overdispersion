@@ -66,7 +66,8 @@ create_contact_in_pop <- function(
   df_indiv_with_contact <- 
     ## Predict number of contacts for each row
     predict(model, newdata = df_indiv, 
-            summary = FALSE, draw_ids = seq(1, tot_draws, tot_draws/n_draws)
+            summary = FALSE, 
+            draw_ids = sample(size = n_draws, x = seq_len(tot_draws))
     ) |> 
     t() |> 
     as.data.frame() |> 
