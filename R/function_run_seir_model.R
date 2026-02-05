@@ -754,15 +754,34 @@ run_and_aggreg_outbreak <- function(label, ...){
         (y_run$S[which_rows_i,, 1] + y_run$E[which_rows_i,, 1] -
            y_run$S[which_rows_i,, n_time])
       }
+    
+    ## Compute age standardised attack rate
+    n_infected_standard <- 0
+    if(length(which_rows_i) > 1) { 
+      for(j in seq_len(11)){
+        which_rows_ij <- grepv(paste0("eth", i, "age", j, "group"), rownames(y_run$S))
+        which_rows_ij_allpop <- grepv(paste0("age", j, "group"), rownames(y_run$S))
+        prop_pop_ij <- sum(n_pop[which_rows_ij]) / sum(n_pop[which_rows_i])
+        prop_all_pop <- sum(n_pop[which_rows_ij_allpop]) / sum(n_pop)
+        n_infected_ij <- 
+          (y_run$S[which_rows_ij,, 1] + y_run$E[which_rows_ij,, 1] -
+             y_run$S[which_rows_ij,, n_time]) |> colSums()
+        n_infected_standard <- n_infected_standard + 
+          n_infected_ij * prop_all_pop / prop_pop_ij
+      }
+    }
+
     # The proportion of infection is the number of infected divided by the 
     # number of inhabitants of ith ethnicity
     prop_infected <- n_infected / sum(n_pop[which_rows_i])
+    prop_infected_standard <- n_infected_standard / sum(n_pop[which_rows_i])
     
     # Merge the current ethnicity, the label of this run, the proportion and 
     # the number of infected into a dataframe df_i
     df_i <- cbind.data.frame(ethnicity = names(groups)[i], 
                              type = label, 
                              proportion = prop_infected,
+                             proportion_standard = prop_infected_standard,
                              n = n_infected)
     df_prop_eth <- rbind.data.frame(df_prop_eth, df_i)
   }
