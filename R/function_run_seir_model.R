@@ -51,6 +51,8 @@
 #' @param anonymised If set to TRUE, use the regression output from the anonymised data.
 #' @param return_only_r0 If set to TRUE, changes the function to return r0 after 
 #' computing it from beta, the per capita matrix, and gamma.
+#' @param return_n_contact Binary: if TRUE: return the number of contact per stratum
+#' of age group, ethnicity and contact group.
 #'
 #' @return A list of named arrays containing the number of individuals in each
 #' state, simulation, strata, and at each time step (output from function_run_simulations).
@@ -60,7 +62,7 @@ run_outbreaks <- function(
     r0 = NULL, beta = NULL, gamma = 5, delta = 3, n_particles = 200, t = seq(0, 700), 
     model = seir_stoch_strat, pop_size = NULL, seed = NULL, anonymised = FALSE, 
     n_draws = 5, list_prop_coef = NULL, which_model = "full_od_cathh", each = NULL, 
-    return_only_r0 = FALSE){
+    return_only_r0 = FALSE, return_n_contact = FALSE){
   ## If there is a seed, set the seed
   if(!is.null(seed)) set.seed(seed)
   
@@ -199,7 +201,8 @@ run_outbreaks <- function(
     mat_eth = matrix_eth, n_contact_age_eth_group = coef, 
     prop_indiv_age_eth_group = prop, t = t, gamma = gamma, delta = delta, 
     all_same = all_same, n_particles = n_particles, model = model, 
-    r0 = r0, beta = beta, k = k, return_only_r0 = return_only_r0)
+    r0 = r0, beta = beta, k = k, return_only_r0 = return_only_r0,
+    return_n_contact = return_n_contact)
   return(y_test)
 }
 
@@ -226,13 +229,15 @@ run_outbreaks <- function(
 #' @param k clustering factor for high-contact individuals.
 #' @param return_only_r0 If set to TRUE, changes the function to return r0 after 
 #' computing it from beta, the per capita matrix, and gamma.
+#' @param return_n_contact Binary: if TRUE: return the number of contact per stratum
+#' of age group, ethnicity and contact group.
 #'
 #' @return A list of named arrays containing the number of individuals in each
 #' state, simulation, strata, and at each time step.
 function_run_simulations <- function(
     n_pop_age_eth_mat, mat_age, mat_eth, model, n_contact_age_eth_group, 
     prop_indiv_age_eth_group, t, gamma, delta, all_same, n_particles,
-    beta = NULL, r0 = NULL, k = 1, return_only_r0 = FALSE){
+    beta = NULL, r0 = NULL, k = 1, return_only_r0 = FALSE, return_n_contact = FALSE){
   if(return_only_r0 & !is.null(r0)){
     return_only_r0 <- FALSE
     warning("setting return_only_r0 = FALSE as r0 is set in the arguments, provide beta instead and set r0 to NULL")
@@ -249,6 +254,13 @@ function_run_simulations <- function(
                    prop_indiv_age_eth_group = prop_indiv_age_eth_group,
                    k = k
     )
+  if(return_n_contact){
+    n_indiv_age_eth_group <- 
+      round(c(prop_indiv_age_eth_group * c(t(n_pop_age_eth_mat))))
+    ## Compute the contact matrix from the per capita matrix
+    mat_contact_standard <- t(t(per_cap_matrix) * n_indiv_age_eth_group)
+    return(rowSums(mat_contact_standard))
+  }
   
   # Extract the number of transmitter groups for each age group / ethnicity
   n_group <- ncol(n_contact_age_eth_group)
