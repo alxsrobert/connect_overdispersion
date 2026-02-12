@@ -5,9 +5,9 @@ n_group_sim <- 3
 
 if(type == "long") {
   # Number of runs
-  nb_run <- 50
+  nb_run <- 100
   # Number of simulations per run (total number of simulations = nb_run * n_particle_sim)
-  n_particle_sim <- 20
+  n_particle_sim <- 15
   # Define the size of the synthetic population used to simulate the number of 
   # contacts per individual by specifying the population size at each level of 
   # age and ethnicity
@@ -150,7 +150,9 @@ for(run in seq_len(nb_run)){
                             seq(1, n_particle_sim), length(vec_ethnicity)),
                tot_pop = n / proportion) |> 
         group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop), n = sum(n), ethnicity = "All", 
+        summarise(proportion = sum(n) / sum(tot_pop), 
+                  proportion_standard = 0, 
+                  n = sum(n), ethnicity = "All", 
                   .groups = "drop")
       
       ## Add the number and proportion of infected by ethnicity to the summary
@@ -167,7 +169,9 @@ for(run in seq_len(nb_run)){
                             seq(1, n_particle_sim), length(vec_ethnicity)),
                tot_pop = n / proportion) |> 
         group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop), n = sum(n), ethnicity = "All", 
+        summarise(proportion = sum(n) / sum(tot_pop), 
+                  proportion_standard = 0, 
+                  n = sum(n), ethnicity = "All", 
                   .groups = "drop")
       # Samecoef: set the ethnicity-related regression coefficients to 1
       y_samecoef <- run_and_aggreg_outbreak(
@@ -178,7 +182,9 @@ for(run in seq_len(nb_run)){
                             seq(1, n_particle_sim), length(vec_ethnicity)),
                tot_pop = n / proportion) |> 
         group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop),n = sum(n), ethnicity = "All", 
+        summarise(proportion = sum(n) / sum(tot_pop),
+                  proportion_standard = 0, 
+                  n = sum(n), ethnicity = "All", 
                   .groups = "drop")
       # samepop: all ethnicities have the same age distribution
       y_samepop <- run_and_aggreg_outbreak(
@@ -189,7 +195,9 @@ for(run in seq_len(nb_run)){
                             seq(1, n_particle_sim), length(vec_ethnicity)),
                tot_pop = n / proportion) |> 
         group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop),n = sum(n), ethnicity = "All", 
+        summarise(proportion = sum(n) / sum(tot_pop),
+                  proportion_standard = 0, 
+                  n = sum(n), ethnicity = "All", 
                   .groups = "drop")
       # samepopsamemix: all ethnicities have the same age distribution and
       # set the per capita matrix by ethnicity as constant.
@@ -202,7 +210,9 @@ for(run in seq_len(nb_run)){
                             seq(1, n_particle_sim), length(vec_ethnicity)),
                tot_pop = n / proportion) |> 
         group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop), n = sum(n), ethnicity = "All",
+        summarise(proportion = sum(n) / sum(tot_pop), 
+                  proportion_standard = 0, 
+                  n = sum(n), ethnicity = "All",
                   .groups = "drop")
       # samepopsamemixsamecoef: all ethnicities have the same age distribution,
       # set the per capita matrix by ethnicity as constant, and set the coef and 
@@ -216,7 +226,9 @@ for(run in seq_len(nb_run)){
                             seq(1, n_particle_sim), length(vec_ethnicity)),
                tot_pop = n / proportion) |> 
         group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop), n = sum(n), ethnicity = "All"
+        summarise(proportion = sum(n) / sum(tot_pop), 
+                  proportion_standard = 0, 
+                  n = sum(n), ethnicity = "All"
                   , .groups = "drop")
       
       ## Add the number and proportion of infected by ethnicity to the summary
