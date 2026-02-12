@@ -540,8 +540,11 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
 #'
 #' @returns Six boxplot panels, showing the number and proportion of cases infected
 #' by age group, ethnic group, and transmitter group.
-figure_plot_total_simulations <- function(y, groups_age, groups_eth, 
-                                          groups_transmission, verbose = TRUE){
+figure_plot_total_simulations <- function(
+    y, groups_age, groups_eth, groups_transmission, verbose = TRUE,
+    cols_ethnicity = c("#002973", "#ffdd00", "#d53880", "black", "#afb2b4"),
+    cols_age = c("#1f78b4", "#33a02c", "#e31a1c", "#ff7f00", "#6a3d9a"),
+    cols_transmission = c("#1b9e77", "#d95f02", "#7570b3")){
   ## Line of code to ensure the plotting function works if there's only 1 particle
   if(is.matrix(y[[1]])) 
     y <- lapply(y, function(x) return(array(x, dim = c(nrow(x), 1, ncol(x)))))
@@ -629,16 +632,16 @@ figure_plot_total_simulations <- function(y, groups_age, groups_eth,
   rownames(mat_nb_transmission) <- rownames(mat_prop_transmission) <- names(groups_transmission)
   
   ## Generate boxplots for each group type
-  boxplot(t(mat_nb_age), ylim = c(0, max(mat_nb_age) * 1.2))
-  boxplot(t(mat_prop_age), ylim = c(0, 1))
-  boxplot(t(mat_nb_eth), ylim = c(0, max(mat_nb_eth) * 1.2))
-  boxplot(t(mat_prop_eth), ylim = c(0, 1))
-  boxplot(t(mat_nb_transmission), ylim = c(0, max(mat_nb_transmission) * 1.2))
-  boxplot(t(mat_prop_transmission), ylim = c(0, 1))
+  boxplot(t(mat_nb_age), ylim = c(0, max(mat_nb_age) * 1.2), border = cols_age)
+  boxplot(t(mat_prop_age), ylim = c(0, 1), border = cols_age)
+  boxplot(t(mat_nb_eth), ylim = c(0, max(mat_nb_eth) * 1.2), border = cols_ethnicity)
+  title(ylab = "Number of cases", outer = FALSE, line = 2, cex.lab = 1.5)
+  boxplot(t(mat_prop_eth), ylim = c(0, 1), border = cols_ethnicity)
+  title(ylab = "Proportion infected", outer = FALSE, line = 2, cex.lab = 1.5)
+  boxplot(t(mat_nb_transmission), ylim = c(0, max(mat_nb_transmission) * 1.2),
+          border = cols_transmission)
+  boxplot(t(mat_prop_transmission), ylim = c(0, 1), border = cols_transmission)
   
-  title(xlab = "Group", outer = TRUE, line = - 0.5, cex.lab = 2)
-  title(ylab = "Number / Proportion of cases", outer = TRUE, line = - 1, 
-        cex.lab = 2)
   
   ## If verbose is TRUE, print the proportion of individuals infected by ethnic group
   if(verbose) {
