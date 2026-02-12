@@ -20,7 +20,7 @@ figure_compare_models <- function(list_regression){
 #' Show all parameters from one model (including reference levels)
 #'
 #' @param list_regression list of regression object
-#' @param which_model Model to plot
+#' @param which_model Model(s) to plot
 #' @param filter_group Group(s) to plot (if set to NULL, all groups are plotted),
 #' set of possible groups: "intercept", "age", "ethnicity_rural", "income",
 #' "employment", "household", "shape", "others"
@@ -31,7 +31,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
   dt_coef <- clean_list_regression_output(list_regression)
   lev_ref <- 
     unique(c("hh_size: One", "White_Urban", "Employed", "Lessthan20000", 
-             "20000-40000", "Female", "Male", "weekday", "0-4", "5-9",
+             "20000-39999", "Female", "Male", "weekday", "0-4", "5-9",
              "10-14", "15-17", "18-24", levels(dt_coef$term)))
 
   # Add reference levels
@@ -50,7 +50,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
       model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "shape"),
     cbind.data.frame(
-      model = which_model, term = "20000-40000", estimate = 1, conf.low = 1, 
+      model = which_model, term = "20000-39999", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "income"),
     cbind.data.frame(
       model = which_model, term = "hh_size: One", estimate = 1, conf.low = 1, 
@@ -75,7 +75,9 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
              !group %in% "intercept" & 
              !term %in% "(Intercept)" & 
              !term %in% c("Other", "ethOther", "shape_ethOther")) |> 
-    mutate(group = case_when(
+    mutate(
+      model = factor(model, levels = which_model),
+      group = case_when(
       group %in% c("gender", "day_of_the_week", "urban_rural") ~ "others",
       !group %in% c("gender", "day_of_the_week", "urban_rural") ~ group),
       group = factor(group, levels = c("age", "ethnicity", "ethnicity_rural", "employment",
@@ -132,7 +134,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
     geom_line(lty = 2, col = "black", y = 1) +
     facet_wrap(.~group, scales = "free", 
                ncol = ifelse(length(filter_group) > 4, 2, 1)) + 
-    theme_bw() + 
+    theme_bw() + labs(col = "") + 
     ylim(c(min(.3, dt_coef_plot$conf.low), max(2, dt_coef_plot$conf.high))) + 
     xlab("Coefficient") + ylab("Value") + 
     if(length(which_model) == 1) guides(col="none")
@@ -152,9 +154,9 @@ figure_forest_plot <- function(list_regression, which_model){
   dt_coef <- clean_list_regression_output(list_regression)
   # Extract the terms from the regression, putting the reference levels first
   lev_ref <- 
-    unique(c("hh_size: One", "White_Urban", "Employed", "Lessthan20000", 
-             "20000-40000", "Female", "Male", "weekday", "0-4", "5-9",
-             "10-14", "15-17", "18-24", levels(dt_coef$term)))
+    unique(c("hh_size: One", grepv("_Urban", levels(dt_coef$term)), "White_Urban",
+             "Employed", "Lessthan20000", "20000-39999", "Female", "Male",
+             "weekday", "0-4", "5-9", "10-14", "15-17", "18-24", levels(dt_coef$term)))
   
   # Add reference levels
   dt_coef <- rbind.data.frame(
@@ -172,7 +174,7 @@ figure_forest_plot <- function(list_regression, which_model){
       model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "shape"),
     cbind.data.frame(
-      model = which_model, term = "20000-40000", estimate = 1, conf.low = 1, 
+      model = which_model, term = "20000-39999", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "income"),
     cbind.data.frame(
       model = which_model, term = "hh_size: One", estimate = 1, conf.low = 1, 
@@ -212,13 +214,13 @@ figure_forest_plot <- function(list_regression, which_model){
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
     "Household\n income"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
-    "Overdispersion\n (shape)"
+    "Ethnicity\nurban / rural\n(overdispersion)"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
     "Household\n size"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "ethnicity_rural"] <- 
-    "Ethnicity\nurban / rural"
+    "Ethnicity\nurban / rural\n(mean)"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "gender"] <- 
-    "Gender"
+    "Sex"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "day_of_the_week"] <- 
     "Day"
   # Rename coefficient labels
@@ -244,6 +246,7 @@ figure_forest_plot <- function(list_regression, which_model){
   
   # Generate the forest plot
   dt_coef_plot |> 
+    filter(term != "Other") |> 
     ggplot(aes(x = estimate, y = term, colour = group)) +
     geom_point() +
     geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
@@ -256,7 +259,6 @@ figure_forest_plot <- function(list_regression, which_model){
       y = NULL,
       title = ""
     ) +
-    xlim(c(0.1, 1.9)) + 
     theme_minimal() +
     guides(col = "none") + 
     theme(
