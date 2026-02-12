@@ -291,10 +291,13 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
                     prediction_populations$type)) |> unique() |> length()) == 1)
     stop("All type should have the same number of individuals per ethnicity")
   
+  if(!any(colnames(prediction_populations) == "iter")) 
+    prediction_populations$iter <- 1
+  
   # Extract the population size
   pop_size_i <- 
     table(paste0(prediction_populations$ethnicity_rural, 
-                 prediction_populations$type))[1]
+                 prediction_populations$type, prediction_populations$iter))[1]
   # Extract the label of each type of simulation
   label_predictions <- unique(prediction_populations$type)
   
@@ -304,15 +307,26 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
     mutate(type = factor(type, label_predictions)) |>
     # Cut contact into categories (defined by breaks and label_break)
     mutate(group_contact = cut(
-      contact, breaks = breaks, labels = label_breaks)) |>    
-    ggplot(aes(x = group_contact, fill = ethnicity_rural)) + 
-    geom_bar(aes(y = after_stat(count / pop_size_i)), width=.5, position = "dodge") +
+      contact, breaks = breaks, labels = label_breaks)) |>
+    group_by(ethnicity_rural, type, iter, group_contact) |> 
+    summarise(prop = n() / pop_size_i, .groups = "drop") |> 
+    group_by(ethnicity_rural, type, group_contact) |> 
+    summarise(med = median(prop),
+              hi = quantile(prop, prob = .975), 
+              low = quantile(prop, prob = .025)) |> 
+    ggplot(aes(x = group_contact, fill = ethnicity_rural, y = med)) + 
+    geom_bar(stat = "identity", position = "dodge", width = 0.7, alpha = 0.7) +
+    geom_errorbar(aes(ymin = low, ymax = hi),
+                  position = position_dodge(width = 0.7),
+                  width = 0.4
+    ) + 
     labs(
       x = "Number of contacts",
       y = "Proportion",
       title = ""
     ) +
     labs(fill = "ethnicity") + 
+    labs(fill = "") + 
     facet_wrap(~type, ncol = 1) + 
     scale_fill_manual(values = cols)
   
