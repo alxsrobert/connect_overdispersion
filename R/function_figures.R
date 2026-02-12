@@ -403,14 +403,20 @@ figure_density <- function(prediction_populations, prop_above = 0, log = TRUE,
 #' @param ymax_n_i upper limit of the y-axis in panel 1.
 #' @param ymax_prop_i upper limit of the y-axis in panel 3.
 #' @param verbose If TRUE, print the overall number of cases in the outbreak.
+#' @param prop_cases_only if TRUE, only return the plot showing the daily 
+#' incidence in each level of "groups"
+#' @param with_lab Boolean indicating whether to add a y label, can be set to 
+#' FALSE if prop_cases_only is TRUE so an outer label can be added after using 
+#' the function
 #'
 #' @returns Basic R plot with four panels:
-#' 1- daily number of infected cases in each level of "groups" per day
-#' 2- daily overall number of infected cases per day
-#' 3- daily incidence in each level of "groups" per day
-#' 4- Number of susceptible individuals in each level of "groups" per day
+#' 1- daily number of infected cases in each level of "groups"
+#' 2- daily overall number of infected cases
+#' 3- daily incidence in each level of "groups"
+#' 4- Daily number of susceptible individuals in each level of "groups"
 figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA, 
-                                    ymax_prop_i = NA, verbose = TRUE){
+                                    ymax_prop_i = NA, verbose = TRUE, 
+                                    prop_cases_only = FALSE, with_lab = TRUE){
   ## Line of code to ensure the plotting function works if there's only 1 particle
   if(is.matrix(y[[1]])) 
     y <- lapply(y, function(x) return(array(x, dim = c(nrow(x), 1, ncol(x)))))
@@ -418,15 +424,20 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
   ## Number of inhabitants per strata
   n_pop <- (y$S + y$E + y$I + y$R)[,1,1]
   
-  # Only plot 10 of the trajectories
-  sample_sim <- sample(seq_len(ncol(y$S)), min(10, ncol(y$S)))
+  # Only plot 5 of the trajectories
+  sample_sim <- sample(seq_len(ncol(y$S)), min(5, ncol(y$S)))
   
+  # Restrict to t
+  y$S <- y$S[,,t]
+  y$new_cases <- y$new_cases[,,t]
+
   ## Four panels
   # 1- daily number of infected cases in each level of "groups" per day
   # 2- daily overall number of infected cases per day
   # 3- daily incidence  in each level of "groups" per day
   # 4- Number of susceptible individuals in each level of "groups" per day
-  par(mfrow = c(2,2), bty = "l", mar = c(3, 4, 3, 0), oma = c(3,1,0,1))
+  if(!prop_cases_only){ 
+    par(mfrow = c(2,2), bty = "l", mar = c(3, 4, 3, 0), oma = c(3,1,0,1))
   
   ## Panel 1: daily number of new cases per group
   # start with group 1
@@ -450,6 +461,7 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
           type = "l", xlab = "Time", ylab = "Total new infected", 
           col = "black", lty = 1, 
           ylim = c(0, max(colSums(y$new_cases)) * 1.5))
+  }
   
   ## Panel 3: Daily proportion of new cases in each group
   plot_y <- matrix(if(length(groups[[1]]) > 1) y$new_cases[groups[[1]],,] |> colSums() else 
@@ -457,8 +469,8 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
   
   # Start with group 1
   matplot(t, t(plot_y[sample_sim,]) / sum(n_pop[groups[[1]]]), type = "l", 
-          xlab = "Time", ylab = "new infected, proportion", col = cols[1],
-          lty = 1, ylim = c(0, ymax_prop_i), las = 1)
+          xlab = "Time", ylab = if(with_lab) "new infected, proportion" else "", 
+          col = cols[1], lty = 1, ylim = c(0, ymax_prop_i), las = 1)
   # Add other groups
   for(i in 2:length(groups)){
     plot_y <- matrix(if(length(groups[[i]]) > 1) y$new_cases[groups[[i]],,] |> colSums() else 
@@ -467,20 +479,26 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
             xlab = "Time", col = cols[i], lty = 1, add = TRUE)
   }
   
-  ## Panel 4: Number of susceptible through time per group
-  plot_y <- matrix(if(length(groups[[1]]) > 1) y$S[groups[[1]],,] |> colSums() else 
-    y$S[groups[[1]],,], ncol = length(t))
-  
-  matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", 
-          ylab = "Susceptible", col = cols[1], lty = 1, 
-          ylim = c(0, sum(n_pop) * .9), lwd = 2)
-  for(i in 2:length(groups)){
-    plot_y <- matrix(if(length(groups[[i]]) > 1) y$S[groups[[i]],,] |> colSums() else 
-      y$S[groups[[i]],,], ncol = length(t))
-    matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", col = cols[i], 
-            lty = 1, add = TRUE, lwd = 2)
+  if(prop_cases_only){
+    # add legend
+    legend("topright", col = cols, lwd = 2, legend = names(groups), bty = "n")
   }
   
+  if(!prop_cases_only){
+    ## Panel 4: Number of susceptible through time per group
+    plot_y <- matrix(if(length(groups[[1]]) > 1) y$S[groups[[1]],,] |> colSums() else 
+      y$S[groups[[1]],,], ncol = length(t))
+    
+    matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", 
+            ylab = "Susceptible", col = cols[1], lty = 1, 
+            ylim = c(0, sum(n_pop) * .9), lwd = 2)
+    for(i in 2:length(groups)){
+      plot_y <- matrix(if(length(groups[[i]]) > 1) y$S[groups[[i]],,] |> colSums() else 
+        y$S[groups[[i]],,], ncol = length(t))
+      matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", col = cols[i], 
+              lty = 1, add = TRUE, lwd = 2)
+    }
+  }    
   # If verbose is TRUE, print the total number of cases and proportion of the population
   # that got infected over the course of the outbreak
   if(verbose){
@@ -497,8 +515,7 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
                  round(quantile(n_cases / sum(n_pop), .025), 3), ", ",
                  round(quantile(n_cases / sum(n_pop), .975), 3), "]%"))
   }
-  title(xlab = "Time", outer = TRUE, line = - 0.5, cex.lab = 1)
-  
+
 }
 
 #' Boxplot showing the overall number of cases per group
