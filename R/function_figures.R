@@ -325,7 +325,6 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
       y = "Proportion",
       title = ""
     ) +
-    labs(fill = "ethnicity") + 
     labs(fill = "") + 
     facet_wrap(~type, ncol = 1) + 
     scale_fill_manual(values = cols)
@@ -368,12 +367,19 @@ figure_density <- function(prediction_populations, prop_above = 0, log = TRUE,
     mutate(rank_contact = rank(contact, ties.method = "first")/length(contact)) |> 
     # Filter out the bottom prop_above proportion of individuals
     filter(rank_contact > prop_above) |>
-    ggplot(aes(x = contact, fill = ethnicity_rural, col = ethnicity_rural)) + 
-    geom_density(alpha = .2) +
+    reframe(n_contact = density(contact)$x,
+              density = density(contact)$y) |> 
+    filter(density > .001) |> 
+    ggplot(aes(x = n_contact, y = density, col = ethnicity_rural, 
+               fill = ethnicity_rural, ymax = density)) + 
+    geom_line(lwd = 1.5) +
+    geom_ribbon(alpha = .4, ymin = 0) +
     ylab("Density") + xlab("Number of contacts") +
     theme_bw() +
-    labs(fill = "ethnicity", col = "ethnicity") + facet_grid(type~.) + 
-    scale_fill_manual(values = cols) + scale_color_manual(values = cols)
+    labs(fill = "ethnicity", col = "ethnicity") + facet_wrap(type~., ncol = 1) + 
+    scale_fill_manual(values = cols) + scale_color_manual(values = cols) + 
+    ylim(0, NA)
+  
   if(log) gg <- gg + scale_x_log10()
   if(!is.null(vec_xlim)){
     if(log & min(vec_xlim) <= 0) vec_xlim[1] <- .5
