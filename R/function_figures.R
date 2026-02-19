@@ -20,7 +20,7 @@ figure_compare_models <- function(list_regression){
 #' Show all parameters from one model (including reference levels)
 #'
 #' @param list_regression list of regression object
-#' @param which_model Model to plot
+#' @param which_model Model(s) to plot
 #' @param filter_group Group(s) to plot (if set to NULL, all groups are plotted),
 #' set of possible groups: "intercept", "age", "ethnicity_rural", "income",
 #' "employment", "household", "shape", "others"
@@ -31,7 +31,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
   dt_coef <- clean_list_regression_output(list_regression)
   lev_ref <- 
     unique(c("hh_size: One", "White_Urban", "Employed", "Lessthan20000", 
-             "20000-40000", "Female", "Male", "weekday", "0-4", "5-9",
+             "20000-39999", "Female", "Male", "weekday", "0-4", "5-9",
              "10-14", "15-17", "18-24", levels(dt_coef$term)))
 
   # Add reference levels
@@ -50,7 +50,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
       model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "shape"),
     cbind.data.frame(
-      model = which_model, term = "20000-40000", estimate = 1, conf.low = 1, 
+      model = which_model, term = "20000-39999", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "income"),
     cbind.data.frame(
       model = which_model, term = "hh_size: One", estimate = 1, conf.low = 1, 
@@ -75,7 +75,9 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
              !group %in% "intercept" & 
              !term %in% "(Intercept)" & 
              !term %in% c("Other", "ethOther", "shape_ethOther")) |> 
-    mutate(group = case_when(
+    mutate(
+      model = factor(model, levels = which_model),
+      group = case_when(
       group %in% c("gender", "day_of_the_week", "urban_rural") ~ "others",
       !group %in% c("gender", "day_of_the_week", "urban_rural") ~ group),
       group = factor(group, levels = c("age", "ethnicity", "ethnicity_rural", "employment",
@@ -132,7 +134,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
     geom_line(lty = 2, col = "black", y = 1) +
     facet_wrap(.~group, scales = "free", 
                ncol = ifelse(length(filter_group) > 4, 2, 1)) + 
-    theme_bw() + 
+    theme_bw() + labs(col = "") + 
     ylim(c(min(.3, dt_coef_plot$conf.low), max(2, dt_coef_plot$conf.high))) + 
     xlab("Coefficient") + ylab("Value") + 
     if(length(which_model) == 1) guides(col="none")
@@ -152,9 +154,9 @@ figure_forest_plot <- function(list_regression, which_model){
   dt_coef <- clean_list_regression_output(list_regression)
   # Extract the terms from the regression, putting the reference levels first
   lev_ref <- 
-    unique(c("hh_size: One", "White_Urban", "Employed", "Lessthan20000", 
-             "20000-40000", "Female", "Male", "weekday", "0-4", "5-9",
-             "10-14", "15-17", "18-24", levels(dt_coef$term)))
+    unique(c("hh_size: One", grepv("_Urban", levels(dt_coef$term)), "White_Urban",
+             "Employed", "Lessthan20000", "20000-39999", "Female", "Male",
+             "weekday", "0-4", "5-9", "10-14", "15-17", "18-24", levels(dt_coef$term)))
   
   # Add reference levels
   dt_coef <- rbind.data.frame(
@@ -172,7 +174,7 @@ figure_forest_plot <- function(list_regression, which_model){
       model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "shape"),
     cbind.data.frame(
-      model = which_model, term = "20000-40000", estimate = 1, conf.low = 1, 
+      model = which_model, term = "20000-39999", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "income"),
     cbind.data.frame(
       model = which_model, term = "hh_size: One", estimate = 1, conf.low = 1, 
@@ -212,13 +214,13 @@ figure_forest_plot <- function(list_regression, which_model){
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
     "Household\n income"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
-    "Overdispersion\n (shape)"
+    "Ethnicity\nurban / rural\n(overdispersion)"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
     "Household\n size"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "ethnicity_rural"] <- 
-    "Ethnicity\nurban / rural"
+    "Ethnicity\nurban / rural\n(mean)"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "gender"] <- 
-    "Gender"
+    "Sex"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "day_of_the_week"] <- 
     "Day"
   # Rename coefficient labels
@@ -244,6 +246,7 @@ figure_forest_plot <- function(list_regression, which_model){
   
   # Generate the forest plot
   dt_coef_plot |> 
+    filter(term != "Other") |> 
     ggplot(aes(x = estimate, y = term, colour = group)) +
     geom_point() +
     geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
@@ -256,7 +259,6 @@ figure_forest_plot <- function(list_regression, which_model){
       y = NULL,
       title = ""
     ) +
-    xlim(c(0.1, 1.9)) + 
     theme_minimal() +
     guides(col = "none") + 
     theme(
@@ -289,10 +291,13 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
                     prediction_populations$type)) |> unique() |> length()) == 1)
     stop("All type should have the same number of individuals per ethnicity")
   
+  if(!any(colnames(prediction_populations) == "iter")) 
+    prediction_populations$iter <- 1
+  
   # Extract the population size
   pop_size_i <- 
     table(paste0(prediction_populations$ethnicity_rural, 
-                 prediction_populations$type))[1]
+                 prediction_populations$type, prediction_populations$iter))[1]
   # Extract the label of each type of simulation
   label_predictions <- unique(prediction_populations$type)
   
@@ -302,15 +307,25 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
     mutate(type = factor(type, label_predictions)) |>
     # Cut contact into categories (defined by breaks and label_break)
     mutate(group_contact = cut(
-      contact, breaks = breaks, labels = label_breaks)) |>    
-    ggplot(aes(x = group_contact, fill = ethnicity_rural)) + 
-    geom_bar(aes(y = after_stat(count / pop_size_i)), width=.5, position = "dodge") +
+      contact, breaks = breaks, labels = label_breaks)) |>
+    group_by(ethnicity_rural, type, iter, group_contact) |> 
+    summarise(prop = n() / pop_size_i, .groups = "drop") |> 
+    group_by(ethnicity_rural, type, group_contact) |> 
+    summarise(med = median(prop),
+              hi = quantile(prop, prob = .975), 
+              low = quantile(prop, prob = .025)) |> 
+    ggplot(aes(x = group_contact, fill = ethnicity_rural, y = med)) + 
+    geom_bar(stat = "identity", position = "dodge", width = 0.7, alpha = 0.7) +
+    geom_errorbar(aes(ymin = low, ymax = hi),
+                  position = position_dodge(width = 0.7),
+                  width = 0.4
+    ) + 
     labs(
       x = "Number of contacts",
       y = "Proportion",
       title = ""
     ) +
-    labs(fill = "ethnicity") + 
+    labs(fill = "") + 
     facet_wrap(~type, ncol = 1) + 
     scale_fill_manual(values = cols)
   
@@ -352,12 +367,19 @@ figure_density <- function(prediction_populations, prop_above = 0, log = TRUE,
     mutate(rank_contact = rank(contact, ties.method = "first")/length(contact)) |> 
     # Filter out the bottom prop_above proportion of individuals
     filter(rank_contact > prop_above) |>
-    ggplot(aes(x = contact, fill = ethnicity_rural, col = ethnicity_rural)) + 
-    geom_density(alpha = .2) +
+    reframe(n_contact = density(contact)$x,
+              density = density(contact)$y) |> 
+    filter(density > .001) |> 
+    ggplot(aes(x = n_contact, y = density, col = ethnicity_rural, 
+               fill = ethnicity_rural, ymax = density)) + 
+    geom_line(lwd = 1.5) +
+    geom_ribbon(alpha = .4, ymin = 0) +
     ylab("Density") + xlab("Number of contacts") +
     theme_bw() +
-    labs(fill = "ethnicity", col = "ethnicity") + facet_grid(type~.) + 
-    scale_fill_manual(values = cols) + scale_color_manual(values = cols)
+    labs(fill = "ethnicity", col = "ethnicity") + facet_wrap(type~., ncol = 1) + 
+    scale_fill_manual(values = cols) + scale_color_manual(values = cols) + 
+    ylim(0, NA)
+  
   if(log) gg <- gg + scale_x_log10()
   if(!is.null(vec_xlim)){
     if(log & min(vec_xlim) <= 0) vec_xlim[1] <- .5
@@ -381,14 +403,20 @@ figure_density <- function(prediction_populations, prop_above = 0, log = TRUE,
 #' @param ymax_n_i upper limit of the y-axis in panel 1.
 #' @param ymax_prop_i upper limit of the y-axis in panel 3.
 #' @param verbose If TRUE, print the overall number of cases in the outbreak.
+#' @param prop_cases_only if TRUE, only return the plot showing the daily 
+#' incidence in each level of "groups"
+#' @param with_lab Boolean indicating whether to add a y label, can be set to 
+#' FALSE if prop_cases_only is TRUE so an outer label can be added after using 
+#' the function
 #'
 #' @returns Basic R plot with four panels:
-#' 1- daily number of infected cases in each level of "groups" per day
-#' 2- daily overall number of infected cases per day
-#' 3- daily incidence in each level of "groups" per day
-#' 4- Number of susceptible individuals in each level of "groups" per day
+#' 1- daily number of infected cases in each level of "groups"
+#' 2- daily overall number of infected cases
+#' 3- daily incidence in each level of "groups"
+#' 4- Daily number of susceptible individuals in each level of "groups"
 figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA, 
-                                    ymax_prop_i = NA, verbose = TRUE){
+                                    ymax_prop_i = NA, verbose = TRUE, 
+                                    prop_cases_only = FALSE, with_lab = TRUE){
   ## Line of code to ensure the plotting function works if there's only 1 particle
   if(is.matrix(y[[1]])) 
     y <- lapply(y, function(x) return(array(x, dim = c(nrow(x), 1, ncol(x)))))
@@ -396,15 +424,20 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
   ## Number of inhabitants per strata
   n_pop <- (y$S + y$E + y$I + y$R)[,1,1]
   
-  # Only plot 10 of the trajectories
-  sample_sim <- sample(seq_len(ncol(y$S)), min(10, ncol(y$S)))
+  # Only plot 5 of the trajectories
+  sample_sim <- sample(seq_len(ncol(y$S)), min(5, ncol(y$S)))
   
+  # Restrict to t
+  y$S <- y$S[,,t]
+  y$new_cases <- y$new_cases[,,t]
+
   ## Four panels
   # 1- daily number of infected cases in each level of "groups" per day
   # 2- daily overall number of infected cases per day
   # 3- daily incidence  in each level of "groups" per day
   # 4- Number of susceptible individuals in each level of "groups" per day
-  par(mfrow = c(2,2), bty = "l", mar = c(3, 4, 3, 0), oma = c(3,1,0,1))
+  if(!prop_cases_only){ 
+    par(mfrow = c(2,2), bty = "l", mar = c(3, 4, 3, 0), oma = c(3,1,0,1))
   
   ## Panel 1: daily number of new cases per group
   # start with group 1
@@ -428,6 +461,7 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
           type = "l", xlab = "Time", ylab = "Total new infected", 
           col = "black", lty = 1, 
           ylim = c(0, max(colSums(y$new_cases)) * 1.5))
+  }
   
   ## Panel 3: Daily proportion of new cases in each group
   plot_y <- matrix(if(length(groups[[1]]) > 1) y$new_cases[groups[[1]],,] |> colSums() else 
@@ -435,8 +469,8 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
   
   # Start with group 1
   matplot(t, t(plot_y[sample_sim,]) / sum(n_pop[groups[[1]]]), type = "l", 
-          xlab = "Time", ylab = "new infected, proportion", col = cols[1],
-          lty = 1, ylim = c(0, ymax_prop_i), las = 1)
+          xlab = "Time", ylab = if(with_lab) "new infected, proportion" else "", 
+          col = cols[1], lty = 1, ylim = c(0, ymax_prop_i), las = 1)
   # Add other groups
   for(i in 2:length(groups)){
     plot_y <- matrix(if(length(groups[[i]]) > 1) y$new_cases[groups[[i]],,] |> colSums() else 
@@ -445,20 +479,26 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
             xlab = "Time", col = cols[i], lty = 1, add = TRUE)
   }
   
-  ## Panel 4: Number of susceptible through time per group
-  plot_y <- matrix(if(length(groups[[1]]) > 1) y$S[groups[[1]],,] |> colSums() else 
-    y$S[groups[[1]],,], ncol = length(t))
-  
-  matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", 
-          ylab = "Susceptible", col = cols[1], lty = 1, 
-          ylim = c(0, sum(n_pop) * .9), lwd = 2)
-  for(i in 2:length(groups)){
-    plot_y <- matrix(if(length(groups[[i]]) > 1) y$S[groups[[i]],,] |> colSums() else 
-      y$S[groups[[i]],,], ncol = length(t))
-    matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", col = cols[i], 
-            lty = 1, add = TRUE, lwd = 2)
+  if(prop_cases_only){
+    # add legend
+    legend("topright", col = cols, lwd = 2, legend = names(groups), bty = "n")
   }
   
+  if(!prop_cases_only){
+    ## Panel 4: Number of susceptible through time per group
+    plot_y <- matrix(if(length(groups[[1]]) > 1) y$S[groups[[1]],,] |> colSums() else 
+      y$S[groups[[1]],,], ncol = length(t))
+    
+    matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", 
+            ylab = "Susceptible", col = cols[1], lty = 1, 
+            ylim = c(0, sum(n_pop) * .9), lwd = 2)
+    for(i in 2:length(groups)){
+      plot_y <- matrix(if(length(groups[[i]]) > 1) y$S[groups[[i]],,] |> colSums() else 
+        y$S[groups[[i]],,], ncol = length(t))
+      matplot(t, t(plot_y[sample_sim,]), type = "l", xlab = "Time", col = cols[i], 
+              lty = 1, add = TRUE, lwd = 2)
+    }
+  }    
   # If verbose is TRUE, print the total number of cases and proportion of the population
   # that got infected over the course of the outbreak
   if(verbose){
@@ -475,8 +515,7 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
                  round(quantile(n_cases / sum(n_pop), .025), 3), ", ",
                  round(quantile(n_cases / sum(n_pop), .975), 3), "]%"))
   }
-  title(xlab = "Time", outer = TRUE, line = - 0.5, cex.lab = 1)
-  
+
 }
 
 #' Boxplot showing the overall number of cases per group
@@ -501,8 +540,11 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
 #'
 #' @returns Six boxplot panels, showing the number and proportion of cases infected
 #' by age group, ethnic group, and transmitter group.
-figure_plot_total_simulations <- function(y, groups_age, groups_eth, 
-                                          groups_transmission, verbose = TRUE){
+figure_plot_total_simulations <- function(
+    y, groups_age, groups_eth, groups_transmission, verbose = TRUE,
+    cols_ethnicity = c("#002973", "#ffdd00", "#d53880", "black", "#afb2b4"),
+    cols_age = c("#1f78b4", "#33a02c", "#e31a1c", "#ff7f00", "#6a3d9a"),
+    cols_transmission = c("#1b9e77", "#d95f02", "#7570b3")){
   ## Line of code to ensure the plotting function works if there's only 1 particle
   if(is.matrix(y[[1]])) 
     y <- lapply(y, function(x) return(array(x, dim = c(nrow(x), 1, ncol(x)))))
@@ -590,16 +632,16 @@ figure_plot_total_simulations <- function(y, groups_age, groups_eth,
   rownames(mat_nb_transmission) <- rownames(mat_prop_transmission) <- names(groups_transmission)
   
   ## Generate boxplots for each group type
-  boxplot(t(mat_nb_age), ylim = c(0, max(mat_nb_age) * 1.2))
-  boxplot(t(mat_prop_age), ylim = c(0, 1))
-  boxplot(t(mat_nb_eth), ylim = c(0, max(mat_nb_eth) * 1.2))
-  boxplot(t(mat_prop_eth), ylim = c(0, 1))
-  boxplot(t(mat_nb_transmission), ylim = c(0, max(mat_nb_transmission) * 1.2))
-  boxplot(t(mat_prop_transmission), ylim = c(0, 1))
+  boxplot(t(mat_nb_age), ylim = c(0, max(mat_nb_age) * 1.2), border = cols_age)
+  boxplot(t(mat_prop_age), ylim = c(0, 1), border = cols_age)
+  boxplot(t(mat_nb_eth), ylim = c(0, max(mat_nb_eth) * 1.2), border = cols_ethnicity)
+  title(ylab = "Number of cases", outer = FALSE, line = 2, cex.lab = 1.5)
+  boxplot(t(mat_prop_eth), ylim = c(0, 1), border = cols_ethnicity)
+  title(ylab = "Proportion infected", outer = FALSE, line = 2, cex.lab = 1.5)
+  boxplot(t(mat_nb_transmission), ylim = c(0, max(mat_nb_transmission) * 1.2),
+          border = cols_transmission)
+  boxplot(t(mat_prop_transmission), ylim = c(0, 1), border = cols_transmission)
   
-  title(xlab = "Group", outer = TRUE, line = - 0.5, cex.lab = 2)
-  title(ylab = "Number / Proportion of cases", outer = TRUE, line = - 1, 
-        cex.lab = 2)
   
   ## If verbose is TRUE, print the proportion of individuals infected by ethnic group
   if(verbose) {

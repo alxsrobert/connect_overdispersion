@@ -59,10 +59,14 @@ clean_hh_size <- function(age_groups, region = "England"){
   for(i in seq_along(age_eth_hh_ref$age_min)){
     ## For each value of age_min in age_eth_hh_ref, set age_match to the highest
     ## value of age_groups with the lower bound below than age_min[i]
-    age_match[i] <- 
-      age_groups[
-        (as.numeric(gsub("[-].*", "", age_groups)) <= age_eth_hh_ref$age_min[i]) |> 
-          which() |> max()]
+    if(all((as.numeric(gsub("[-].*", "", age_groups)) > age_eth_hh_ref$age_min[i]))){
+      age_match[i] <- NA
+    } else {
+      age_match[i] <- 
+        age_groups[
+          (as.numeric(gsub("[-].*", "", age_groups)) <= age_eth_hh_ref$age_min[i]) |> 
+            which() |> max()]
+    }
   }
   
   ## Add age_match to age_eth_hh_ref
@@ -70,6 +74,7 @@ clean_hh_size <- function(age_groups, region = "England"){
   
   age_eth_hh <- 
     age_eth_hh_ref |>  
+    filter(!is.na(age_group)) |> 
     ## change hh_size to a numeric value
     mutate(
       hh_size = as.numeric(gsub("[^0-9.-]", "", hh_size))) |> 
@@ -77,7 +82,7 @@ clean_hh_size <- function(age_groups, region = "England"){
     filter(hh_size_code > 0) |>
     ## Rename hh_size to match the model coefficients
     mutate(hh_size = case_when(
-      hh_size == 1 ~ "alone", 
+      hh_size == 1 ~ "Alone", 
       hh_size == 2 ~ "Two", 
       hh_size == 3 ~ "Three", 
       hh_size == 4 ~ "Four", 

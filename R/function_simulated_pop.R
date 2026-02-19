@@ -66,7 +66,8 @@ create_contact_in_pop <- function(
   df_indiv_with_contact <- 
     ## Predict number of contacts for each row
     predict(model, newdata = df_indiv, 
-            summary = FALSE, draw_ids = seq(1, tot_draws, tot_draws/n_draws)
+            summary = FALSE, 
+            draw_ids = sample(size = n_draws, x = seq_len(tot_draws))
     ) |> 
     t() |> 
     as.data.frame() |> 
@@ -112,10 +113,11 @@ create_pop <- function(
   ## increasing order.
   all_age_groups <- c("18-24",
     grepv("p_age_group", model$fit@sim$fnames_oi) |> 
-    gsub(pattern = "b_p_age_group", replacement = "") |> 
-    gsub(pattern = "M", replacement = "-")
+      gsub(pattern = "b_p_age_group", replacement = "") |> 
+      gsub(pattern = "M", replacement = "-")
   )
   
+  all_age_groups <- all_age_groups[!grepl("shape", all_age_groups)]
   age_group_order <- order(as.numeric(gsub(".*[-+]", "", all_age_groups)))
   age_group_level <- unique(all_age_groups)[age_group_order]
   
@@ -308,8 +310,7 @@ create_pop <- function(
                 names_prefix = "employ_") |> 
     # Remove child levels, and reference levels for income and employ
     select(-contains("child")) |> 
-    select(-p_income_20000_39999) |> 
-    select(-employ_employed) |> 
+    select(-any_of(c("p_income_20000_39999", "employ_employed"))) |> 
     # Set 18-24 as the reference of p_age_group, and add individual id
     mutate(p_age_group = relevel(age, ref = "18-24"),
            id_indiv = row_number())
