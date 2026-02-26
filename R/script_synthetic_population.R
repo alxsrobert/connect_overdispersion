@@ -39,5 +39,5 @@ for(i in seq_len(n_run)){
   )
 }
 
-saveRDS(prediction_pop, paste0("result/contact_distribution_synthetic", 
+saveRDS(prediction_pop, paste0("results/contact_distribution_synthetic", 
                                if(anonymised) "_anoun", ".RDS"))
