@@ -1,22 +1,3 @@
-#' Plot parameter estimates from several models
-#'
-#' @param list_regression List of named bayesian regression objects
-#'
-#' @return ggplot object
-figure_compare_models <- function(list_regression){
-  # Create a tibble containing all coefficient estimates and CIs for all models
-  dt_coef <- clean_list_regression_output(list_regression)
-  
-  # Plot the mean and 95% CI for each model, with one panel per variable
-  dt_coef |>
-    ggplot(aes(x = term, ymin = conf.low, ymax = conf.high, col = model, 
-               group = model)) + 
-    geom_errorbar(width = 0.4, position = position_dodge(0.5)) +
-    geom_point(aes(y = estimate), position = position_dodge(0.5)) + 
-    geom_hline(yintercept = 1, lty = 2) +
-    facet_wrap(.~group, scales = "free", ncol = 2, nrow = 5)
-}
-
 #' Show all parameters from one model (including reference levels)
 #'
 #' @param list_regression list of regression object
@@ -214,7 +195,7 @@ figure_forest_plot <- function(list_regression, which_model){
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
     "Household\n income"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
-    "Ethnicity\nurban / rural\n(overdispersion)"
+    "Ethnicity\nurban / rural\n(dispersion)"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
     "Household\n size"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "ethnicity_rural"] <- 
@@ -313,7 +294,7 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
     group_by(ethnicity_rural, type, group_contact) |> 
     summarise(med = median(prop),
               hi = quantile(prop, prob = .975), 
-              low = quantile(prop, prob = .025)) |> 
+              low = quantile(prop, prob = .025), .groups = "drop") |> 
     ggplot(aes(x = group_contact, fill = ethnicity_rural, y = med)) + 
     geom_bar(stat = "identity", position = "dodge", width = 0.7, alpha = 0.7) +
     geom_errorbar(aes(ymin = low, ymax = hi),
@@ -375,7 +356,6 @@ figure_density <- function(prediction_populations, prop_above = 0, log = TRUE,
     geom_line(lwd = 1.5) +
     geom_ribbon(alpha = .4, ymin = 0) +
     ylab("Density") + xlab("Number of contacts") +
-    theme_bw() +
     labs(fill = "ethnicity", col = "ethnicity") + facet_wrap(type~., ncol = 1) + 
     scale_fill_manual(values = cols) + scale_color_manual(values = cols) + 
     ylim(0, NA)
@@ -560,8 +540,7 @@ figure_plot_total_simulations <- function(
   # 4- Overall proportion of infected by groups_eth
   # 5- Overall number of infected by groups_transmission
   # 6- Overall proportion of infected by groups_transmission
-  par(mfrow = c(3,2), bty = "l", mar = c(3, 4, 3, 0), oma = c(3,1,0,1))
-  
+
   ## Compute the total number and proportion of individuals infected over the 
   ## course of the outbreak by age group
   # Initialise the matrices
