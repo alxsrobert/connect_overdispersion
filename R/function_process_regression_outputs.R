@@ -15,8 +15,8 @@ clean_list_regression_output <- function(list_regression){
         select(term, estimate, conf.low, conf.high)
     }) |> bind_rows(.id = "model")
   
-  ## For models without ethnicity-specific overdispersion parameter, add the 
-  ## estimated overdispersion as shape_intercept
+  ## For models without ethnicity-specific dispersion parameter, add the 
+  ## estimated dispersion as shape_intercept
   df_all_results <- 
     rbind.data.frame(
       df_all_results,
