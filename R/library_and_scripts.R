@@ -1,3 +1,10 @@
+## Install all packages:
+# install.packages("rio", "tidyverse", "broom.mixed", "brms", "flexmix", 
+#                  "grid", "ggridges", "patchwork", "ggpmisc")
+## Install odin2 and dust2 using:
+# install.packages(
+#   c("odin2", "dust2"),
+#   repos = c("https://mrc-ide.r-universe.dev", "https://cloud.r-project.org"))
 library(rio)
 library(tidyverse)
 library(broom.mixed)
@@ -6,15 +13,13 @@ library(flexmix)
 library(grid)
 library(ggridges)
 library(patchwork)
-# Install odin2 and dust2 using:
-# install.packages(
-#   c("odin2", "dust2"),
-#   repos = c("https://mrc-ide.r-universe.dev", "https://cloud.r-project.org"))
 library(odin2)
 library(dust2)
 library(ggpmisc)
 source("R/function_data_cleaning.R")
 source("R/function_clean_pop_data.R")
+source("R/function_figures_main.R")
+source("R/function_figures_supplement.R")
 source("R/function_simulated_pop.R")
 source("R/function_process_regression_outputs.R")
 source("R/function_figures.R")
