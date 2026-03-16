@@ -93,7 +93,7 @@ run_outbreaks <- function(
                    " to match the number of groups in list_prop_coef"))
   }
   
-  ## Import age- and ethnicity-stratified per capita contact data from RECONNECT
+  ## Import age- and ethnicity-stratified per capita contact data from Reconnect
   contact_age <- readRDS("results/dt_contact_age.RDS")
   contact_eth <- readRDS("results/dt_contact_eth.RDS")
   
@@ -560,7 +560,7 @@ get_per_capita <- function(n_pop_age_eth_mat, mat_age_per_cap, mat_eth_per_cap,
       prop_contact <- contact_per_eth[eth_i, eth_j] / sum(contact_per_eth)
       
       # n_contact_tot * prop_contact[] is the total number of contacts between 
-      # age_i and age_j according to RECONNECT distributed among all ethnicities
+      # age_i and age_j according to Reconnect distributed among all ethnicities
       dist_contact <- n_contact_tot * prop_contact
       
       # dist_contact is divided by the number of inhabitants in eth_i to get
