@@ -5,6 +5,10 @@ generate_all_figures <- function(
     contact_dist, y_result, y_result4, df_prop_r0_per_region,
     cols_ethnicity, cols_age, cols_contact, cols_region
     ){
+  
+  ifelse(!dir.exists(file.path(getwd(), "figures")), 
+         dir.create(file.path(getwd(), "figures"), showWarnings = FALSE), FALSE)
+  
   generate_figure2(list_models, which_model_plot)
   generate_figure3(y_result, cols_ethnicity)
   generate_figure4(y_result, cols_ethnicity)
