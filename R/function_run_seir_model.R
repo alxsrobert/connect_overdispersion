@@ -17,7 +17,7 @@
 #' the population size is the number of inhabitants in the region.
 #' @param list_prop_coef list (output from create_contact_group). If set to NULL 
 #' (default), list_prop_coef is computed in run_outbreaks. If list_prop_coef is 
-#' provided, scenario_contact_group, tot_pop_size, anonymised, each, n_group, k, 
+#' provided, scenario_contact_group, tot_pop_size, anonymised, each, n_group,
 #' which_model, n_draws are not used.
 #' @param scenario_contact_group Method used to generate the synthetic population and 
 #' the number of contact per individual. Can take one of the following values: 
@@ -36,7 +36,6 @@
 #' 1000 individuals for each level of age and ethnicity, leading to an overall 
 #' synthetic population of 55,000 inhabitants with 5 ethnicities and 11 age groups).
 #' @param n_group Number of transmitter groups (by default 3: low / medium / high)
-#' @param k clustering factor for high-contact individuals.
 #' @param which_model Character, defines which model from the list of regression 
 #' outputs should be used.
 #' @param n_draws Number of draws from the regression outputs used to simulate 
@@ -58,7 +57,7 @@
 #' state, simulation, strata, and at each time step (output from function_run_simulations).
 run_outbreaks <- function(
     same_age_distribution = FALSE, scenario_contact_group = "reference", all_same = FALSE,
-    all_eth = FALSE, n_group = 3, region = "England", k = 1, pop_size_contact = NULL, 
+    all_eth = FALSE, n_group = 3, region = "England", pop_size_contact = NULL, 
     r0 = NULL, beta = NULL, gamma = 5, delta = 3, n_particles = 200, t = seq(0, 700), 
     model = seir_stoch_strat, pop_size = NULL, seed = NULL, anonymised = FALSE, 
     n_draws = 5, list_prop_coef = NULL, which_model = "full_od_cathh", each = NULL, 
@@ -201,7 +200,7 @@ run_outbreaks <- function(
     mat_eth = matrix_eth, n_contact_age_eth_group = coef, 
     prop_indiv_age_eth_group = prop, t = t, gamma = gamma, delta = delta, 
     all_same = all_same, n_particles = n_particles, model = model, 
-    r0 = r0, beta = beta, k = k, return_only_r0 = return_only_r0,
+    r0 = r0, beta = beta, return_only_r0 = return_only_r0,
     return_n_contact = return_n_contact)
   return(y_test)
 }
@@ -226,7 +225,6 @@ run_outbreaks <- function(
 #' @param n_particles Number of simulations run with the SEIR model.
 #' @param beta Transmissibility rate.
 #' @param r0 Basic reproduction number
-#' @param k clustering factor for high-contact individuals.
 #' @param return_only_r0 If set to TRUE, changes the function to return r0 after 
 #' computing it from beta, the per capita matrix, and gamma.
 #' @param return_n_contact Binary: if TRUE: return the number of contact per stratum
@@ -237,7 +235,7 @@ run_outbreaks <- function(
 function_run_simulations <- function(
     n_pop_age_eth_mat, mat_age, mat_eth, model, n_contact_age_eth_group, 
     prop_indiv_age_eth_group, t, gamma, delta, all_same, n_particles,
-    beta = NULL, r0 = NULL, k = 1, return_only_r0 = FALSE, return_n_contact = FALSE){
+    beta = NULL, r0 = NULL, return_only_r0 = FALSE, return_n_contact = FALSE){
   if(return_only_r0 & !is.null(r0)){
     return_only_r0 <- FALSE
     warning("setting return_only_r0 = FALSE as r0 is set in the arguments, provide beta instead and set r0 to NULL")
@@ -251,8 +249,7 @@ function_run_simulations <- function(
     get_per_capita(n_pop_age_eth_mat = n_pop_age_eth_mat, mat_age_per_cap = mat_age, 
                    mat_eth_per_cap = mat_eth, all_same = all_same,
                    n_contact_age_eth_group = n_contact_age_eth_group, 
-                   prop_indiv_age_eth_group = prop_indiv_age_eth_group,
-                   k = k
+                   prop_indiv_age_eth_group = prop_indiv_age_eth_group
     )
   if(return_n_contact){
     n_indiv_age_eth_group <- 
@@ -495,12 +492,11 @@ create_contact_group <- function(
 #' @param prop_indiv_age_eth_group 2-d numeric matrix: Proportion of the population
 #' in each level of age-ethnicity (row) by transmitter group (column) (i.e. 
 #' all(rowSums(prop_indiv_age_eth_group = 1))).
-#' @param k clustering factor for high-contact individuals.
 #'
 #' @return Per capita matrix (numeric matrix)
 get_per_capita <- function(n_pop_age_eth_mat, mat_age_per_cap, mat_eth_per_cap, 
                            all_same, n_contact_age_eth_group, 
-                           prop_indiv_age_eth_group, k){
+                           prop_indiv_age_eth_group){
   ## Total population size
   tot_pop <- sum(n_pop_age_eth_mat)
   ## number of age groups
@@ -615,14 +611,6 @@ get_per_capita <- function(n_pop_age_eth_mat, mat_age_per_cap, mat_eth_per_cap,
     ## participants' age and ethnicity
     prop_age_eth_i <- mat_prop_age_eth[ageeth_i, ]
     
-    ## Integrate different clustering in high-contact individuals
-    if(group_i == 3){
-      ethnicity_i <- substr(rownames(mat_prop_age_eth)[ageeth_i], 1, 4)
-      prop_age_eth_i[grep(ethnicity_i, names(prop_age_eth_i))] <- 
-        prop_age_eth_i[grep(ethnicity_i, names(prop_age_eth_i))] * k
-      prop_age_eth_i <- prop_age_eth_i/sum(prop_age_eth_i)
-    }
-
     for(j in seq_len(ncol(mat_contact_age_eth_group))){
       # Extract the contact's age and ethnicity
       ageeth_j <- rep(seq_len(n_eth * n_age), n_group)[j]

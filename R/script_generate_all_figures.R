@@ -1,5 +1,5 @@
 source("R/library_and_scripts.R")
-anon_sim <- TRUE
+anon_sim <- FALSE
 
 ### Import outputs and datasets
 ## list of regression models
@@ -24,7 +24,7 @@ y_result4_sim <- readRDS("results/outputmodel_byr0_region_4.RDS") |>
   )
 ## Simulation outputs with r0 and proportion infected per value of beta
 df_prop_r0_per_region_sim <- 
-  readRDS("results/prop_and_r0_clust_region.RDS")$df_region |> 
+  readRDS("results/prop_and_r0_clust_region.RDS") |> 
   filter(!is.nan(prop) & prop > 0.001) |> 
   mutate(type = relevel(factor(type), ref = "England"))
 

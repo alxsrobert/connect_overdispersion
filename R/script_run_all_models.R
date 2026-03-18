@@ -1,6 +1,6 @@
 ## Define parameters and initialise result data frames
 source("R/library_and_scripts.R")
-type <- "short" # c("short", "long")
+type <- "long" # c("short", "long")
 n_group_sim <- 3
 anoun <- TRUE
 
@@ -29,7 +29,6 @@ vec_ethnicity <-
   c("Asian_Urban", "Black_Urban", "Mixed_Urban", "Other_Urban", "White_Urban")
 
 y_result <- data.frame()
-df_tot_clust <- data.frame()
 df_tot_region <- data.frame()
 
 ## Define input and output files
@@ -43,7 +42,7 @@ file_output_r0 <- paste0(
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 
 
-#### Output by region + Impact of clustering + Impact of demography / regression ####
+#### Output by region + Impact of demography / regression parameters ####
 
 ## use several runs to integrate the stochasticity associated with generating the  
 ## synthetic population and the transmitter groups
@@ -102,21 +101,21 @@ for(run in seq_len(nb_run)){
         # Samemix: set the per capita matrix by ethnicity as constant.
         y_samemix <- run_and_aggreg_outbreak(
           label = paste0("samemix", "_", r0_i), list_prop_coef = list_prop_coef_sim,
-          region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
+          region = "England", n_particles = n_particle_sim, t = t_sim,
           r0 = r0_i, all_eth = TRUE) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
                             length(vec_ethnicity)))
         # Samecoef: set the ethnicity-related regression coefficients to 1
         y_samecoef <- run_and_aggreg_outbreak(
           label = paste0("samecoef", "_", r0_i), 
-          list_prop_coef = list_prop_coef_sim_same_mean, region = "England", k = 1, 
+          list_prop_coef = list_prop_coef_sim_same_mean, region = "England", 
           n_particles = n_particle_sim, t = t_sim, r0 = r0_i) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
                             length(vec_ethnicity)))
         # samepop: all ethnicities have the same age distribution
         y_samepop <- run_and_aggreg_outbreak(
           label = paste0("samepop", "_", r0_i), 
-          list_prop_coef = list_prop_coef_sim_same_pop, region = "England", k = 1, 
+          list_prop_coef = list_prop_coef_sim_same_pop, region = "England", 
           n_particles = n_particle_sim, t = t_sim, r0 = r0_i, same_age_distribution = TRUE) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
                             length(vec_ethnicity)))
@@ -124,7 +123,7 @@ for(run in seq_len(nb_run)){
         # set the per capita matrix by ethnicity as constant.
         y_samepopsamemix <- run_and_aggreg_outbreak(
           label = paste0("samepopsamemix", "_", r0_i), 
-          list_prop_coef = list_prop_coef_sim_same_pop, region = "England", k = 1, 
+          list_prop_coef = list_prop_coef_sim_same_pop, region = "England", 
           n_particles = n_particle_sim, t = t_sim, r0 = r0_i, all_eth = TRUE,
           same_age_distribution = TRUE) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), 
@@ -135,7 +134,7 @@ for(run in seq_len(nb_run)){
         y_samepopsamemixsamecoef <- run_and_aggreg_outbreak(
           label = paste0("samepopsamemixsamecoef", "_", r0_i),
           list_prop_coef = list_prop_coef_sim_same_all,
-          region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
+          region = "England", n_particles = n_particle_sim, t = t_sim,
           r0 = r0_i, same_age_distribution = TRUE, all_eth = TRUE) |>
           mutate(iter = rep((run - 1) * n_particle_sim + seq(1, n_particle_sim), length(vec_ethnicity)))
         
@@ -175,7 +174,7 @@ for(run in seq_len(nb_run)){
       # Samemix: set the per capita matrix by ethnicity as constant.
       y_samemix <- run_and_aggreg_outbreak(
         label = paste0("samemix", "_", 0.0335), list_prop_coef = list_prop_coef_sim,
-        region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
+        region = "England", n_particles = n_particle_sim, t = t_sim,
         beta = 0.0335, all_eth = TRUE) |>
         mutate(iter = rep((run - 1) * n_particle_sim + 
                             seq(1, n_particle_sim), length(vec_ethnicity)),
@@ -188,7 +187,7 @@ for(run in seq_len(nb_run)){
       # Samecoef: set the ethnicity-related regression coefficients to 1
       y_samecoef <- run_and_aggreg_outbreak(
         label = paste0("samecoef", "_", 0.0335), 
-        list_prop_coef = list_prop_coef_sim_same_mean, region = "England", k = 1, 
+        list_prop_coef = list_prop_coef_sim_same_mean, region = "England", 
         n_particles = n_particle_sim, t = t_sim, beta = 0.0335) |>
         mutate(iter = rep((run - 1) * n_particle_sim + 
                             seq(1, n_particle_sim), length(vec_ethnicity)),
@@ -201,7 +200,7 @@ for(run in seq_len(nb_run)){
       # samepop: all ethnicities have the same age distribution
       y_samepop <- run_and_aggreg_outbreak(
         label = paste0("samepop", "_", 0.0335), list_prop_coef = list_prop_coef_sim_same_pop, 
-        region = "England", k = 1, n_particles = n_particle_sim, t = t_sim, 
+        region = "England", n_particles = n_particle_sim, t = t_sim, 
         beta = 0.0335, same_age_distribution = TRUE) |>
         mutate(iter = rep((run - 1) * n_particle_sim + 
                             seq(1, n_particle_sim), length(vec_ethnicity)),
@@ -215,7 +214,7 @@ for(run in seq_len(nb_run)){
       # set the per capita matrix by ethnicity as constant.
       y_samepopsamemix <- run_and_aggreg_outbreak(
         label = paste0("samepopsamemix", "_", 0.0335), 
-        list_prop_coef = list_prop_coef_sim_same_pop, region = "England", k = 1, 
+        list_prop_coef = list_prop_coef_sim_same_pop, region = "England", 
         n_particles = n_particle_sim, t = t_sim, beta = 0.0335, all_eth = TRUE,
         same_age_distribution = TRUE) |>
         mutate(iter = rep((run - 1) * n_particle_sim + 
@@ -232,7 +231,7 @@ for(run in seq_len(nb_run)){
       y_samepopsamemixsamecoef <- run_and_aggreg_outbreak(
         label = paste0("samepopsamemixsamecoef", "_", 0.0335),
         list_prop_coef = list_prop_coef_sim_same_all,
-        region = "England", k = 1, n_particles = n_particle_sim, t = t_sim,
+        region = "England", n_particles = n_particle_sim, t = t_sim,
         beta = 0.0335, same_age_distribution = TRUE, all_eth = TRUE) |>
         mutate(iter = rep((run - 1) * n_particle_sim + 
                             seq(1, n_particle_sim), length(vec_ethnicity)),
@@ -297,45 +296,4 @@ for(run in seq_len(nb_run)){
   }
 }
 
-#### Check R0 by beta: impact of the clustering factor ####
-
-all_k <- c(seq(.2, 1, .1), seq(2, 5, .5))
-for(run in seq_len(nb_run)){
-  list_prop_coef_england <- create_contact_group(
-    scenario_contact_group = "reference", n_group = n_group_sim, n_draws = 5, 
-    region = "England", each = each_sim, file_in = file_regression, 
-    which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
-  
-  for(i in seq_along(all_k)){
-    k_i <- all_k[i]
-    for(j in seq_along(all_betas)){
-      beta_j <- all_betas[j]
-      # Compute r0 from beta_j, k_i and list_prop_coef_england
-      r0_ij <- run_outbreaks(
-        region = "England", beta = beta_j, list_prop_coef = list_prop_coef_england, 
-        k = k_i, return_only_r0 = TRUE)
-      
-      # Run the stochastic simulations and return the overall proportion of 
-      # infected in the population
-      prop_cases <- 
-        (run_and_aggreg_outbreak(
-          label = paste0(i, "_", all_betas[j]), region = "England", k = k_i, 
-          beta = beta_j, n_particles = n_particle_sim, 
-          list_prop_coef = list_prop_coef_england
-        ) |>
-          mutate(iter = rep((run - 1) * n_particle_sim + 
-                              seq(1, n_particle_sim), length(vec_ethnicity)),
-                 tot_pop = n / proportion) |> 
-          group_by(iter) |> 
-          summarise(prop = sum(n) / sum(tot_pop), .groups = "drop"))$prop
-      
-      df_i <- cbind.data.frame(
-        k = k_i, r0 = r0_ij, beta = beta_j, prop = prop_cases, 
-        iter = (run - 1) * n_particle_sim + seq_len(n_particle_sim))
-      df_tot_clust <- rbind.data.frame(df_tot_clust, df_i)
-      
-    }
-  }
-}
-
-saveRDS(list(df_clust = df_tot_clust, df_region = df_tot_region), file_output_r0)
+saveRDS(df_tot_region, file_output_r0)
