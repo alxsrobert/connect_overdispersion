@@ -33,7 +33,7 @@ generate_figure2 <- function(list_models, which_model_plot){
   ## Generate forest plot
   figure2 <- figure_forest_plot(list_models, which_model_plot)
   
-  pdf(file = "figures/figure2.pdf", useDingbats = TRUE, width = 8, height = 8)
+  pdf(file = "figures/figure2.pdf", useDingbats = TRUE, width = 8, height = 9.5)
   print(figure2)
   dev.off()
 }
