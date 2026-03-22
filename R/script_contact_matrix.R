@@ -1,4 +1,5 @@
 library(rio)
+library(contactsurveys)
 per_capita <- TRUE
 n_boots <- 1000
 # choose age groups for analysis
@@ -108,13 +109,22 @@ age_sex_strata <- # Read in ONS age structure data
     proportion = n / sum(ons_data$pop)) %>% ungroup() 
 
 ## Import participant and contact data
-reconnect <- socialmixr::get_survey('https://zenodo.org/records/17257918')
+reconnect <- 
+  socialmixr::load_survey(
+    contactsurveys::download_survey('https://doi.org/10.5281/zenodo.17339866'))
 
 reconnect_participant <- as.data.frame(reconnect$participants)
 reconnect_contact <- as.data.frame(reconnect$contacts)
 
+reconnect_contact <- 
+  full_join(
+    reconnect_contact,
+    reconnect_participant |> 
+      select(cnt_age_group, cnt_location, cnt_age_group, cnt_ethnicity, cnt_ses, cont_id))
+
 ## Rename columns and changes breaks of p_age_group
 part <- reconnect_participant |> 
+  distinct(part_id, .keep_all = TRUE) |> 
   rename(p_id = part_id,
          p_age_group = part_age_group,
          p_adult_child = part_adult_child,
