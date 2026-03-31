@@ -27,8 +27,6 @@ full_with_od_cathh <-
   ), data = part_reg, family = negbinomial)
 
 ## Save all models
-saveRDS(list(full_no_od = full, 
-             full_od = full_withod, 
-             full_od_nohh = full_withod_nohh,
+saveRDS(list(ethnicity = ethnicity_with_od,
              full_od_cathh = full_with_od_cathh),
         paste0("results/regression_output", if(anonymised) "_anoun", ".rds"))
