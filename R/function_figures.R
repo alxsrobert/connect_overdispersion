@@ -78,13 +78,13 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
     "Household income"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
-    "Overdispersion parameter (shape)"
+    "Dispersion parameter"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
     "Household size"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "others"] <- 
     "Others"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "ethnicity_rural"] <- 
-    "Ethnicity and  urban / rural status"
+    "Ethnicity and urban/rural status"
 
   levels(dt_coef_plot$term) <- gsub("_Rural", " and\n Rural", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("_Urban", " and\n Urban", levels(dt_coef_plot$term))
@@ -195,11 +195,11 @@ figure_forest_plot <- function(list_regression, which_model){
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
     "Household\n income"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
-    "Ethnicity\nurban / rural\n(dispersion)"
+    "Ethnicity\nurban/rural\n(dispersion)"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
     "Household\n size"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "ethnicity_rural"] <- 
-    "Ethnicity\nurban / rural\n(mean)"
+    "Ethnicity\nurban/rural\n(mean)"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "gender"] <- 
     "Gender"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "day_of_the_week"] <- 

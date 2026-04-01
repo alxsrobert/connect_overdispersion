@@ -4,12 +4,12 @@ generate_figureS5 <- function(list_models){
   names(list_models)[names(list_models) == "full_od_cathh"] <- 
     c("Full model")
   names(list_models)[names(list_models) == "ethnicity"] <- 
-    c("Only ethnicity &\n urban rural status")
+    c("Only ethnicity &\n urban/rural status")
   
   pdf(file = "figures/s5_param_models.pdf", useDingbats = TRUE, width = 8, height = 4)
   print(
     figure_parameter_model(
-      list_models, which_model = c("Full model", "Only ethnicity &\n urban rural status"), 
+      list_models, which_model = c("Full model", "Only ethnicity &\n urban/rural status"), 
       filter_group = c("ethnicity_rural", "shape"))
   )
   dev.off()
