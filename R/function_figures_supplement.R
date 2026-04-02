@@ -1,77 +1,15 @@
-# Figure S5: Comparison with ethnicity-only model
-generate_figureS5 <- function(list_models){
-  ## Rename elements of interest
-  names(list_models)[names(list_models) == "full_od_cathh"] <- 
-    c("Full model")
-  names(list_models)[names(list_models) == "ethnicity"] <- 
-    c("Only ethnicity &\n urban/rural status")
   
-  pdf(file = "figures/s5_param_models.pdf", useDingbats = TRUE, width = 8, height = 4)
-  print(
-    figure_parameter_model(
-      list_models, which_model = c("Full model", "Only ethnicity &\n urban/rural status"), 
-      filter_group = c("ethnicity_rural", "shape"))
-  )
-  dev.off()
-}
-
-# Figure S6: Contact distribution in synthetic population
-generate_figureS6 <- function(contact_dist, cols_ethnicity){
-  set_theme(
-    theme_bw() +
-      theme(axis.text=element_text(size=16), strip.text.x = element_text(size = 14),
-            title = element_text(size=16), strip.background = element_blank(),
-            strip.text = element_text(hjust = 0,face="bold"),
-            axis.title=element_text(size=14,face="bold"), plot.tag.position = c(.1,.95),
-            plot.tag = element_text(face = "bold", size = 20),
-            legend.text = element_text(size = 12),
-      )  
-  )
-  
-  
-  figure_supp <- list()
-  ## Left panels: distribution of contacts
-  figure_supp[[1]] <- figure_nb_contact_hist(
-    prediction_populations = contact_dist |> 
-      mutate(ethnicity_rural = gsub("[_].*", "", ethnicity_rural),
-             type = case_when(
-               type == "at baseline" ~ "All covariates constant except ethnicity",
-               type == "population" ~ "Same distribution of covariates for each ethnicity",
-               type == "ethnicity-stratified\n population" ~ "Ethnicity-stratified distribution of covariates",
-             )), breaks = c(-Inf, 2, 10, 20, Inf),
-    label_breaks = c("<=2", "3-10", "11-20", ">20"), cols = cols_ethnicity) +
-    labs(tag = "A")
-  
-  ## Right panels: distribution of contacts in high-contact individuals
-  figure_supp[[2]] <- 
-    figure_density(
-      prediction_populations = 
-        contact_dist |> filter(iter == 1) |> 
-        mutate(
-          type = case_when(
-            type == "at baseline" ~ "All covariates constant except ethnicity",
-            type == "population" ~ "Same distribution of covariates for each ethnicity",
-            type == "ethnicity-stratified\n population" ~ "Ethnicity-stratified distribution of covariates",
-          ), 
-          ethnicity_rural = gsub("_Urban", "", ethnicity_rural)), 
-      prop_above =  .75, cols = cols_ethnicity) + 
-    guides(col = "none", fill = "none") + 
-    theme(strip.text = element_text(hjust = 0,face="bold", colour = "white")) +
-    labs(tag = "B")
-  
-  
-  pdf(file = "figures/s6_toptransmitters.pdf", useDingbats = TRUE, width = 13, height = 6)
-  print(
-    figure_supp[[1]] + figure_supp[[2]] + 
-      plot_layout(axis_titles = "collect_x", guides = "collect", axes = "collect")
-  )
   dev.off()
   
-  theme_set()
+  
+  
+  
+  
+  
 }
 
-# Figures S7-S12: Fitting mixture models to distribution of contacts
-generate_figureS7S12 <- function(model_regression){
+# Figures S4-S9: Fitting mixture models to distribution of contacts
+generate_figureS4S9 <- function(model_regression){
   set_theme(
     theme_bw() + 
       theme(legend.title = element_blank(), 
@@ -110,7 +48,7 @@ generate_figureS7S12 <- function(model_regression){
         plot_separated_distributions <- list()
         plot_full_distributions <- list()
         pdf(file = paste0(
-          "figures/s", 7 + (j-1)/2, "_", n_contact, "_transmitter", 1 + j %/% 2, ".pdf"),
+          "figures/s", 4 + (j-1)/2, "_", n_contact, "_transmitter", 1 + j %/% 2, ".pdf"),
           useDingbats = TRUE, width = 10, height = if(j == tot_age) 3.5 else 7)
       }
       dt_all_pop <- data.frame()
@@ -219,8 +157,8 @@ generate_figureS7S12 <- function(model_regression){
   theme_set()
 }
 
-# Figure S13: Difference between # of contacts before and after per capita method
-generate_figureS13 <- function(file_regression, which_model_plot){
+# Figure S11: Difference between # of contacts before and after per capita method
+generate_figureS11 <- function(file_regression, which_model_plot){
   each_sim <- 500
   level_age <- c("0-4", "5-9", "10-14", "15-17", "18-24", "25-29", "30-39", "40-49",
                  "50-59", "60-69", "70+")
@@ -266,7 +204,7 @@ generate_figureS13 <- function(file_regression, which_model_plot){
       type == "group" ~ "Generated from mixture distributions"
     ))
   
-  pdf(file = "figures/s13_comparison_ncontacts.pdf", useDingbats = TRUE, 
+  pdf(file = "figures/s11_comparison_ncontacts.pdf", useDingbats = TRUE, 
       width = 8, height = 9)
   ## Generate figure
   print(
@@ -284,6 +222,78 @@ generate_figureS13 <- function(file_regression, which_model_plot){
             legend.text = element_text(size = 14, face = "bold"))
   )
   dev.off()
+}
+
+# Figure S12: Comparison with ethnicity-only model
+generate_figureS12 <- function(list_models){
+  ## Rename elements of interest
+  names(list_models)[names(list_models) == "full_od_cathh"] <- 
+    c("Full model")
+  names(list_models)[names(list_models) == "ethnicity"] <- 
+    c("Only ethnicity &\n urban/rural status")
+  
+  pdf(file = "figures/s12_param_models.pdf", useDingbats = TRUE, width = 8, height = 4)
+  print(
+    figure_parameter_model(
+      list_models, which_model = c("Full model", "Only ethnicity &\n urban/rural status"), 
+      filter_group = c("ethnicity_rural", "shape"))
+  )
+  dev.off()
+}
+
+# Figure S13: Contact distribution in synthetic population
+generate_figureS13 <- function(contact_dist, cols_ethnicity){
+  set_theme(
+    theme_bw() +
+      theme(axis.text=element_text(size=16), strip.text.x = element_text(size = 14),
+            title = element_text(size=16), strip.background = element_blank(),
+            strip.text = element_text(hjust = 0,face="bold"),
+            axis.title=element_text(size=14,face="bold"), plot.tag.position = c(.1,.95),
+            plot.tag = element_text(face = "bold", size = 20),
+            legend.text = element_text(size = 12),
+      )  
+  )
+  
+  
+  figure_supp <- list()
+  ## Left panels: distribution of contacts
+  figure_supp[[1]] <- figure_nb_contact_hist(
+    prediction_populations = contact_dist |> 
+      mutate(ethnicity_rural = gsub("[_].*", "", ethnicity_rural),
+             type = case_when(
+               type == "at baseline" ~ "All covariates constant except ethnicity",
+               type == "population" ~ "Same distribution of covariates for each ethnicity",
+               type == "ethnicity-stratified\n population" ~ "Ethnicity-stratified distribution of covariates",
+             )), breaks = c(-Inf, 2, 10, 20, Inf),
+    label_breaks = c("<=2", "3-10", "11-20", ">20"), cols = cols_ethnicity) +
+    labs(tag = "A")
+  
+  ## Right panels: distribution of contacts in high-contact individuals
+  figure_supp[[2]] <- 
+    figure_density(
+      prediction_populations = 
+        contact_dist |> filter(iter == 1) |> 
+        mutate(
+          type = case_when(
+            type == "at baseline" ~ "All covariates constant except ethnicity",
+            type == "population" ~ "Same distribution of covariates for each ethnicity",
+            type == "ethnicity-stratified\n population" ~ "Ethnicity-stratified distribution of covariates",
+          ), 
+          ethnicity_rural = gsub("_Urban", "", ethnicity_rural)), 
+      prop_above =  .75, cols = cols_ethnicity) + 
+    guides(col = "none", fill = "none") + 
+    theme(strip.text = element_text(hjust = 0,face="bold", colour = "white")) +
+    labs(tag = "B")
+  
+  
+  pdf(file = "figures/s13_toptransmitters.pdf", useDingbats = TRUE, width = 13, height = 6)
+  print(
+    figure_supp[[1]] + figure_supp[[2]] + 
+      plot_layout(axis_titles = "collect_x", guides = "collect", axes = "collect")
+  )
+  dev.off()
+  
+  theme_set()
 }
 
 # Figure S14 age standardised attack rate
