@@ -105,7 +105,7 @@ generate_figure3 <- function(y_result, cols_ethnicity){
     geom_line(aes(col = ethnicity, x = r0, y = median)) + 
     scale_fill_manual(values = cols_ethnicity) + scale_color_manual(values = cols_ethnicity) + 
     geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
-    facet_grid(plot ~ scenario, scales = "free", switch = "y") + xlab("R0") + 
+    facet_grid(plot ~ scenario, scales = "free", switch = "y") + xlab(bquote(R[0])) + 
     labs(tag = "A") + theme_bw() +
     theme(axis.text = element_text(size=16), strip.text = element_text(size = 14),
           strip.placement = "outside", strip.background.y = element_blank(),
@@ -121,7 +121,8 @@ generate_figure3 <- function(y_result, cols_ethnicity){
     filter(r0 == 4 | r0 < 0.04) |> 
     mutate(
       tot = n / proportion, ## Compute the total number of individuals per ethnicity
-      which = case_when(r0 == 4 ~ paste0("R0 = ", r0), r0 < 0.04 ~ paste0("\u03B2 = ", r0)),
+      which = case_when(r0 == 4 ~ paste0("R0 = ", r0), 
+                        r0 < 0.04 ~ paste0("\u03B2 = ", r0)),
       ylab = "Attack rate"
     ) |> 
     ## Compute the total proportion of the population infected
@@ -131,7 +132,8 @@ generate_figure3 <- function(y_result, cols_ethnicity){
     ## Generate the figure
     ggplot(aes(x = tot_cases, y = scenario, fill = which)) + 
     geom_density_ridges(scale = .5, alpha = 0.7, col = NA) +
-    scale_fill_manual(values = c("lightblue", "#FF7276")) +
+    scale_fill_manual(values = c("lightblue", "#FF7276"),
+                      labels = c(expression("R"[0] == 4), expression("\u03B2 = 0.0335"))) +
     facet_grid(ylab ~ ., scales = "free", switch = "y") + 
     theme_minimal() + coord_flip() + xlab("") + ylab("") + labs(tag = "B") +
     theme(axis.text=element_text(size=14), strip.text = element_text(size = 14),
@@ -204,7 +206,7 @@ generate_figure4 <- function(y_result, cols_ethnicity){
       geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
       scale_fill_manual(values = cols_ethnicity) + 
       scale_color_manual(values = cols_ethnicity) + 
-      facet_wrap(.~scenario) + xlab("R0") + 
+      facet_wrap(.~scenario) + xlab(bquote(R[0])) + 
       guides(fill = guide_legend(override.aes = list(alpha = .7)),
              col = "none") + 
       ylab("Relative attack rate\n") + theme_bw() + ylim(0.8, 2.1) + 
@@ -257,7 +259,7 @@ generate_figure5 <- function(df_prop_r0_per_region, cols_region){
     ggplot(aes(x = beta, y = med, col = type, fill = type, ymin = low_95, ymax = hi_95)) + 
     geom_point() + geom_line() + geom_ribbon(col = NA, alpha = 0.2) + 
     scale_color_manual(values = cols_region) + scale_fill_manual(values = cols_region) +
-    guides(colour = guide_legend(nrow = 2)) + xlab("beta") + ylab("R0") +
+    guides(colour = guide_legend(nrow = 2)) + xlab("\u03B2") + ylab(bquote(R[0])) +
     labs(tag = "A")
   
   ## Panel B Proportion by city for several values of beta
@@ -272,8 +274,8 @@ generate_figure5 <- function(df_prop_r0_per_region, cols_region){
     summarise(med = median(prop),
               low_95 = quantile(prop, 0.025),
               hi_95 = quantile(prop, 0.975), .groups = "drop") |> 
-    mutate(beta = paste0('beta *" = ', beta, ' (R0 between ', min_r0, ' and ', 
-                         max_r0, ')"'),
+    mutate(beta = paste0('beta == ', beta, '  (R[0]~"between"~', 
+                         min_r0, '~"and"~', max_r0, ')'),
            beta = factor(beta), beta = fct_rev(beta),
            ## Set y range for each value of beta
            ymin = case_when(grepl(0.052, beta) ~ 0.655,
@@ -315,7 +317,7 @@ generate_figure5 <- function(df_prop_r0_per_region, cols_region){
     geom_hline(yintercept = 0, lty = 2, col = "Black") + 
     scale_x_discrete(guide = guide_axis(n.dodge = 2)) + 
     theme(legend.position = "none") +
-    xlab("") + ylab("Proportion change in R0 across\nall betas compared to England") +
+    xlab("") + ylab(expression("Proportion change in R"[0], " across\nall betas compared to England")) +
     labs(tag = "C")
   
   pdf(file = "figures/figure5.pdf", useDingbats = TRUE, width = 12, height = 9)

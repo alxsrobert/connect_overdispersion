@@ -350,7 +350,7 @@ generate_figureS14 <- function(y_result, cols_ethnicity){
     scale_fill_manual(values = cols_ethnicity) + 
     scale_color_manual(values = cols_ethnicity) + 
     geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
-    facet_grid(plot ~ scenario, scales = "free", switch = "y") + xlab("R0") + theme_bw() + 
+    facet_grid(plot ~ scenario, scales = "free", switch = "y") + xlab(bquote(R[0])) + theme_bw() + 
     theme(axis.text = element_text(size=16), strip.text = element_text(size = 14),
           strip.placement = "outside", strip.background.y = element_blank(),
           axis.title.y = element_blank(), axis.title.x = element_text(size=14,face="bold"), 
@@ -493,7 +493,7 @@ generate_figureS17 <- function(y_result4, cols_ethnicity){
     geom_line(aes(col = ethnicity, x = r0, y = median)) + 
     scale_fill_manual(values = cols_ethnicity) + scale_color_manual(values = cols_ethnicity) + 
     geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
-    facet_grid(plot ~ scenario, scales = "free", switch = "y") + xlab("R0") + 
+    facet_grid(plot ~ scenario, scales = "free", switch = "y") + xlab(bquote(R[0])) + 
     labs(tag = "A") + theme_bw() +
     theme(axis.text = element_text(size=16), strip.text = element_text(size = 14),
           strip.placement = "outside", strip.background.y = element_blank(),
@@ -519,7 +519,8 @@ generate_figureS17 <- function(y_result4, cols_ethnicity){
     ## Generate the figure
     ggplot(aes(x = tot_cases, y = scenario, fill = which)) + 
     geom_density_ridges(scale = .5, alpha = 0.7, col = NA) +
-    scale_fill_manual(values = c("lightblue", "#FF7276")) +
+    scale_fill_manual(values = c("lightblue", "#FF7276"),
+                      labels = c(expression("R"[0] == 4), expression("\u03B2 = 0.0335"))) +
     facet_grid(ylab ~ ., scales = "free", switch = "y") + 
     theme_minimal() + coord_flip() + xlab("") + ylab("") + labs(tag = "B") +
     theme(axis.text=element_text(size=14), strip.text = element_text(size = 14),
@@ -771,7 +772,7 @@ generate_figureS21S22 <- function(y_result, cols_ethnicity){
     scale_alpha_manual(values = c(.7, .5, .3, .5, 1)) +
     scale_fill_manual(values = cols_ethnicity) + 
     scale_color_manual(values = cols_ethnicity) + 
-    facet_wrap(.~scenario) + xlab("R0") + 
+    facet_wrap(.~scenario) + xlab(bquote(R[0])) + 
     guides(fill = guide_legend(override.aes = list(alpha = .7)), col = "none") + 
     ylab("Attack rate") + ylim(0.12, .92)
   
@@ -800,7 +801,7 @@ generate_figureS21S22 <- function(y_result, cols_ethnicity){
     scale_fill_manual(values = cols_ethnicity) + ylab("Age-standardised\nrelative attack rate") +
     scale_color_manual(values = cols_ethnicity) + 
     geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
-    facet_wrap(.~scenario) + xlab("R0") + 
+    facet_wrap(.~scenario) + xlab(bquote(R[0])) + 
     theme(legend.position = "bottom")
   
   pdf(file = "figures/s22_propinf_city_AS.pdf", useDingbats = TRUE, width = 11, height = 5)
