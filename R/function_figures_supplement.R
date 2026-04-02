@@ -60,7 +60,7 @@ generate_figureS6 <- function(contact_dist, cols_ethnicity){
     labs(tag = "B")
   
   
-  pdf(file = "figures/s6_toptransmitters.pdf", useDingbats = TRUE, width = 12, height = 6)
+  pdf(file = "figures/s6_toptransmitters.pdf", useDingbats = TRUE, width = 13, height = 6)
   print(
     figure_supp[[1]] + figure_supp[[2]] + 
       plot_layout(axis_titles = "collect_x", guides = "collect", axes = "collect")
@@ -773,7 +773,7 @@ generate_figureS21S22 <- function(y_result, cols_ethnicity){
     scale_color_manual(values = cols_ethnicity) + 
     facet_wrap(.~scenario) + xlab("R0") + 
     guides(fill = guide_legend(override.aes = list(alpha = .7)), col = "none") + 
-    ylab("Attack rate") + ylim(0.15, .92)
+    ylab("Attack rate") + ylim(0.12, .92)
   
   pdf(file = "figures/s21_propinf_city.pdf", useDingbats = TRUE, width = 11, height = 5)
   print(p_prop)

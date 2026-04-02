@@ -616,7 +616,7 @@ figure_plot_total_simulations <- function(
   boxplot(t(mat_nb_eth), ylim = c(0, max(mat_nb_eth) * 1.2), border = cols_ethnicity)
   title(ylab = "Number of cases", outer = FALSE, line = 2, cex.lab = 1.5)
   boxplot(t(mat_prop_eth), ylim = c(0, 1), border = cols_ethnicity)
-  title(ylab = "Proportion infected", outer = FALSE, line = 2, cex.lab = 1.5)
+  title(ylab = "Attack rate", outer = FALSE, line = 2, cex.lab = 1.5)
   boxplot(t(mat_nb_transmission), ylim = c(0, max(mat_nb_transmission) * 1.2),
           border = cols_transmission)
   boxplot(t(mat_prop_transmission), ylim = c(0, 1), border = cols_transmission)
