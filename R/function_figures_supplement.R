@@ -1,13 +1,3 @@
-  
-  dev.off()
-  
-  
-  
-  
-  
-  
-}
-
 # Figures S4-S9: Fitting mixture models to distribution of contacts
 generate_figureS4S9 <- function(model_regression){
   set_theme(
