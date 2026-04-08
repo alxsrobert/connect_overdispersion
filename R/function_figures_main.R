@@ -14,7 +14,6 @@ generate_all_figures <- function(
   generate_figure4(y_result, cols_ethnicity)
   generate_figure5(df_prop_r0_per_region, cols_region)
   
-  generate_figureS2S3(cols_ethnicity)
   generate_figureS4S9(model_regression)
   generate_figureS11(file_regression, which_model_plot)
   generate_figureS12(list_models)
