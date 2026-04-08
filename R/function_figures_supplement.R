@@ -664,7 +664,7 @@ generate_figureS18S20 <- function(cols_ethnicity){
       ggplot(aes(y = prop, x = econ, fill = ethnic_group)) +
       scale_fill_manual(values = c(cols_ethnicity)) + 
       geom_col(position = "dodge",width = .6) + facet_grid(~ region, scales = "free") +
-      scale_x_discrete(drop = TRUE) + ylab("Proportion") + xlab("Economic status") +
+      scale_x_discrete(drop = TRUE) + ylab("Proportion") + xlab("Employment status") +
       theme(legend.position = "none",
             axis.text.x = element_text(angle = 90),
             strip.text.x = element_blank(),
