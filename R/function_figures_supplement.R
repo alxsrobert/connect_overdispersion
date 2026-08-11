@@ -257,8 +257,8 @@ generate_figureS13 <- function(contact_dist, cols_ethnicity){
                type == "at baseline" ~ "All covariates constant except ethnicity",
                type == "population" ~ "Same distribution of covariates for each ethnicity",
                type == "ethnicity-stratified\n population" ~ "Ethnicity-stratified distribution of covariates",
-             )), breaks = c(-Inf, 2, 10, 20, Inf),
-    label_breaks = c("<=2", "3-10", "11-20", ">20"), cols = cols_ethnicity) +
+             )), breaks = c(-Inf, 2, 10, 20, 50, Inf),
+    label_breaks = c("<=2", "3-10", "11-20", "21-50", ">50"), cols = cols_ethnicity) +
     labs(tag = "A")
   
   ## Right panels: distribution of contacts in high-contact individuals
