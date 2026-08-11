@@ -49,8 +49,11 @@ generate_figureS4S9 <- function(model_regression){
                  p_age_group == unique(simulated_population$p_age_group)[j])
         
         # Fit the distribution of contact to n_group Poisson distributions
-        flexfit_ij <- flexmix(contact ~ 1, data = pop_ij, k = n_contact, 
-                              model = FLXglm(family = "poisson"))
+        flexfit_ij <- flexmix(contact ~ 1, 
+                              data = pop_ij, #|> 
+                                # filter(contact < 100),
+                                # mutate(contact = case_when(contact > 100 ~ 100, 
+                                #                            .default = contact)),
         
         # Extract the proportion of the population in each group
         size_fit <- flexfit_ij@prior
