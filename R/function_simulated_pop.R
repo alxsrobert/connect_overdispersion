@@ -44,35 +44,55 @@ create_contact_in_pop <- function(
     warning("values are assigned to both tot_pop_size and each, the program is using each and ignoring tot_pop_size")
   }
   
-  # Compute the total number of draws in the regression analysis
-  summary_model <- summary(model)
-  tot_draws <- (summary_model$iter - summary_model$warmup) * summary_model$chains
-  
   # Generate synthetic population
   df_indiv <- create_pop(model = model, tot_pop_size = tot_pop_size, each = each, 
                          which_type = which_type, region = region,
                          vec_ethnicity_rural = vec_ethnicity_rural)
   
-  # Get all variables used in the model formula
-  vars_in_model <- all.vars(formula(model)$formula)
+  # Compute the total number of draws in the regression analysis
+  summary_model_u18 <- summary(model$bel18)
+  tot_draws_u18 <- (summary_model_u18$iter - summary_model_u18$warmup) * 
+    summary_model_u18$chains
+  
+  summary_model_ov18 <- summary(model$ov18)
+  tot_draws_ov18 <- (summary_model_ov18$iter - summary_model_ov18$warmup) * 
+    summary_model_ov18$chains
+  
   # Variables in your new data
   vars_in_newdata <- names(df_indiv)
+  
+  # Get all variables used in the model formula
+  vars_in_model <- unique(c(
+    unlist(lapply(formula(model$bel18)$pforms, all.vars)),
+    unlist(lapply(formula(model$ov18)$pforms, all.vars))))
   # Find missing variables
   missing_vars <- setdiff(vars_in_model, vars_in_newdata)
   # Create data2 list with zeroes for missing variables
   data2_list <- setNames(as.list(rep(0, length(missing_vars))), missing_vars)
   df_indiv <- cbind.data.frame(df_indiv, data2_list)
+
+  df_u18 <- df_indiv |> 
+    filter(age %in% c("0-4", "5-9", "10-14", "15-17"),
+           cat_household_members != "Alone") |> 
+    mutate(p_age_group = factor(p_age_group))
+  df_ov18 <- df_indiv |> 
+    filter(!age %in% c("0-4", "5-9", "10-14", "15-17")) |> 
+    mutate(p_age_group = factor(p_age_group))
   
   df_indiv_with_contact <- 
-    ## Predict number of contacts for each row
-    predict(model, newdata = df_indiv, 
-            summary = FALSE, 
-            draw_ids = sample(size = n_draws, x = seq_len(tot_draws))
+    ## Predict number of contacts for each row, split between u18 and ov18
+    cbind(
+      if(nrow(df_u18) > 0) {
+        predict(model$bel18, newdata = df_u18, summary = FALSE, 
+                draw_ids = sample(size = n_draws, x = seq_len(tot_draws_u18)))} else NULL,
+      if(nrow(df_ov18) > 0) {
+        predict(model$ov18, newdata = df_ov18, summary = FALSE, 
+                draw_ids = sample(size = n_draws, x = seq_len(tot_draws_ov18)))} else NULL
     ) |> 
     t() |> 
     as.data.frame() |> 
     ## Combine random draws with the combination of features
-    cbind(df_indiv) |> 
+    cbind(rbind(df_u18, df_ov18)) |> 
     ## Switch to long format
     pivot_longer(cols = starts_with("V"), values_to = "contact", names_to = NULL) |> 
     group_by(id_indiv) |> 
