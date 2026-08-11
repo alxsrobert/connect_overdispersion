@@ -17,8 +17,8 @@
 #' the population size is the number of inhabitants in the region.
 #' @param list_prop_coef list (output from create_contact_group). If set to NULL 
 #' (default), list_prop_coef is computed in run_outbreaks. If list_prop_coef is 
-#' provided, scenario_contact_group, tot_pop_size, anonymised, each, n_group,
-#' which_model, n_draws are not used.
+#' provided, scenario_contact_group, tot_pop_size, anonymised, each, n_group, 
+#' n_draws are not used.
 #' @param scenario_contact_group Method used to generate the synthetic population and 
 #' the number of contact per individual. Can take one of the following values: 
 #' "same_mean": The coefficients of the regression analysis associated with the 
@@ -36,8 +36,6 @@
 #' 1000 individuals for each level of age and ethnicity, leading to an overall 
 #' synthetic population of 55,000 inhabitants with 5 ethnicities and 11 age groups).
 #' @param n_group Number of transmitter groups (by default 3: low / medium / high)
-#' @param which_model Character, defines which model from the list of regression 
-#' outputs should be used.
 #' @param n_draws Number of draws from the regression outputs used to simulate 
 #' the number of contacts
 #' @param same_age_distribution Binary, if TRUE: use the same age distribution
@@ -60,8 +58,8 @@ run_outbreaks <- function(
     all_eth = FALSE, n_group = 3, region = "England", pop_size_contact = NULL, 
     r0 = NULL, beta = NULL, gamma = 5, delta = 3, n_particles = 200, t = seq(0, 700), 
     model = seir_stoch_strat, pop_size = NULL, seed = NULL, anonymised = FALSE, 
-    n_draws = 5, list_prop_coef = NULL, which_model = "full_od_cathh", each = NULL, 
-    return_only_r0 = FALSE, return_n_contact = FALSE){
+    n_draws = 5, list_prop_coef = NULL, each = NULL, return_only_r0 = FALSE, 
+    return_n_contact = FALSE){
   ## If there is a seed, set the seed
   if(!is.null(seed)) set.seed(seed)
   
@@ -82,8 +80,8 @@ run_outbreaks <- function(
     file_in <- paste0("results/regression_output", if(anonymised) "_anoun", ".rds")
     list_prop_coef <- create_contact_group(
       scenario_contact_group = scenario_contact_group, n_group = n_group, 
-      n_draws = n_draws, file_in = file_in, which_model = which_model, 
-      region = region, seed = NULL, tot_pop_size = pop_size_contact, each = each,
+      n_draws = n_draws, file_in = file_in, region = region, seed = NULL, 
+      tot_pop_size = pop_size_contact, each = each,
       vec_ethnicity_rural = c("Asian_Urban", "Black_Urban", "Mixed_Urban", 
                               "Other_Urban", "White_Urban"))
   } else if(n_group != ncol(list_prop_coef$prop)) {
@@ -359,8 +357,6 @@ function_run_simulations <- function(
 #' @param n_group Number of transmitter groups (by default 3: low / medium / high)
 #' @param n_draws Number of draws from the regression results used to simulate the number of contacts
 #' @param file_in Path to the regression output file.
-#' @param which_model Character, defines which model from the list of regression 
-#' outputs should be used.
 #' @param vec_ethnicity_rural Vector indicating the levels of ethnicity
 #' in the synthetic population
 #' @param region Region in which the synthetic population is generated. It impacts 
@@ -382,7 +378,7 @@ function_run_simulations <- function(
 #' - coef: the average number of contacts in each transmitter group of each
 #'         level of age group and ethnicity.
 create_contact_group <- function(
-    scenario_contact_group, n_group, n_draws, file_in, which_model, 
+    scenario_contact_group, n_group, n_draws, file_in,
     vec_ethnicity_rural, region, tot_pop_size = NULL, each = NULL, seed = NULL){
   # CHECK scenario_contact_group is among the possible values
   if(!scenario_contact_group %in% c("same_mean", "same_od", "same_pop", "same_all", "reference"))
@@ -390,7 +386,7 @@ create_contact_group <- function(
     `same_all` or `reference`")
   
   # Import the regression model
-  model <- readRDS(file_in)[[which_model]]
+  model <- readRDS(file_in)
   
   
   if(scenario_contact_group %in% c("same_mean", "same_all")) {
@@ -398,24 +394,18 @@ create_contact_group <- function(
     ## associated with ethnicity
     
     # Extract parameters associated with ethnicity (mean and OD)
-    pars_ethnicity <- grep("ethnicity", names(model$fit@sim$samples[[1]]))
+    pars_ethnicity_u18 <- grep("ethnicity", names(model$bel18$fit@sim$samples[[1]]))
+    pars_ethnicity_ov18 <- grep("ethnicity", names(model$ov18$fit@sim$samples[[1]]))
     
     # Set values to 0
-    for(i in seq_along(model$fit@sim$samples)){
-      model$fit@sim$samples[[i]][pars_ethnicity] <- 
-        lapply(model$fit@sim$samples[[i]][pars_ethnicity],
+    for(i in seq_along(model$bel18$fit@sim$samples)){
+      model$bel18$fit@sim$samples[[i]][pars_ethnicity_u18] <- 
+        lapply(model$bel18$fit@sim$samples[[i]][pars_ethnicity_u18],
                function(X) return(X * 0))
     }
-  } else if(scenario_contact_group == "same_od") {
-    ## If scenario_contact_group is same_od, change the values of the shape coefficients
-    # Extract parameters associated with ethnicity (OD only)
-    pars_ethnicity <- 
-      grep("shape_ethnicity", names(model$fit@sim$samples[[1]]))
-    
-    # Set values to 0
-    for(i in seq_along(model$fit@sim$samples)){
-      model$fit@sim$samples[[i]][pars_ethnicity] <- 
-        lapply(model$fit@sim$samples[[i]][pars_ethnicity],
+    for(i in seq_along(model$ov18$fit@sim$samples)){
+      model$ov18$fit@sim$samples[[i]][pars_ethnicity_ov18] <- 
+        lapply(model$ov18$fit@sim$samples[[i]][pars_ethnicity_ov18],
                function(X) return(X * 0))
     }
   }
@@ -684,7 +674,8 @@ get_per_capita <- function(n_pop_age_eth_mat, mat_age_per_cap, mat_eth_per_cap,
   
   ## Remove empty groups (i.e. transmitter groups with no individual)
   empty_groups <- which(
-    colSums(is.na(mat_contact_age_eth_group_per_cap)) == n_age * n_eth * n_group
+    colSums(is.na(mat_contact_age_eth_group_per_cap) |
+              is.infinite(mat_contact_age_eth_group_per_cap)) == n_age * n_eth * n_group
   )
   if(length(empty_groups) > 0){
     mat_contact_age_eth_group_per_cap <- 
@@ -756,7 +747,8 @@ run_and_aggreg_outbreak <- function(label, ...){
         prop_all_pop <- sum(n_pop[which_rows_ij_allpop]) / sum(n_pop)
         n_infected_ij <- 
           (y_run$S[which_rows_ij,, 1] + y_run$E[which_rows_ij,, 1] -
-             y_run$S[which_rows_ij,, n_time]) |> colSums()
+             y_run$S[which_rows_ij,, n_time])
+        if(all(class(n_infected_ij) != "numeric"))  n_infected_ij <- n_infected_ij |> colSums()
         n_infected_standard <- n_infected_standard + 
           n_infected_ij * prop_all_pop / prop_pop_ij
       }
