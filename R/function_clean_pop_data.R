@@ -99,49 +99,108 @@ clean_hh_size <- function(age_groups, region = "England"){
   return(age_eth_hh)
 }
 
-## household income by ethnicity in the United Kingdom, 
-## from https://www.ethnicity-facts-figures.service.gov.uk/work-pay-and-benefits/pay-and-income/household-income/latest/#by-ethnicity
-## (download the data here: https://www.ethnicity-facts-figures.service.gov.uk/work-pay-and-benefits/pay-and-income/household-income/latest/downloads/household-income-2021.csv)
-clean_income <- function(){
-  ## The data is only available at a national level, so we assume the distribution
-  ## by ethnicity does not change by area
-  eth_income_ref <- import("data/income_by_ethnicity.csv")
+## dataset from https://www.ons.gov.uk/datasets/create
+## See data/age_ethnicity_hiqual files for details on how the 
+## file was generated
+clean_hiqual <- function(age_groups, region = "England"){
+  ## Import the dataset
+  if(region == "England"){
+    age_eth_hiqual_ref <- import("data/age_ethnicity_hiqual.csv")
+  } else if(region == "London"){
+    age_eth_hiqual_ref <- import("data/age_ethnicity_hiqual_london.csv")
+  } else if(region %in% c("Birmingham", "Leicester", "Liverpool", 
+                          "Manchester", "York")){
+    age_eth_hiqual_ref <- import("data/age_ethnicity_hiqual_la.csv")
+  } else 
+    stop("region must be England, London, Birmingham, Leicester, Liverpool,
+         Manchester, or York")
   
-  eth_income <-
-    eth_income_ref |> 
-    ## Only keep the entries corresponding to the latest dates
-    filter(substr(Time, 1, 4) == max(as.numeric(substr(Time, 1, 4)))) |> 
-    ## Compute the number of households by multiplying value by the denominator
-    mutate(n = as.numeric(Value) * Denominator / 100,
-           ## re-format income, by removing all lowercase letters (and only keep 
-           ## numbers and GBP), so income looks like GBPXXXGBPYYY
-           income = gsub("[a-zL, ]", "", `Income bracket`),
-           ## Remove the first three characters, so income looks like XXXGBPYYY
-           income = sub("...", "", income),
-           ## The lower income boundary is what comes before "GBP" in income
-           ## Multiplied by 50 to move from weekly values to annual values
-           min = as.numeric(gsub("GBP.*", "", income)) * 50,
-           ## The upper income boundary is what comes after "GBP" in income
-           ## Multiplied by 50 to move from weekly values to annual values
-           max = as.numeric(gsub(".*GBP", "", income)) * 50) |> 
-    ## rename income_group to match the coefficients from the model
-    mutate(income_group = case_when(
-      min < 20000 ~ "p_income_Lessthan20000",
-      min < 40000 ~ "p_income_20000_39999",
-      min < 60000 ~ "p_income_40000_59999",
-      min < 100000 ~ "p_income_60000_100000",
-      min >= 100000 ~ "p_income_Over100000"
-    )) |> 
-    group_by(income_group, `Ethnicity of household reference person`, Denominator) |> 
+  ## rename the columns
+  colnames(age_eth_hiqual_ref) <- c(
+    "code", "area", "age", "age_full", "ethnic_code", "ethnic_group", 
+    "hiqual_code", "hiqual", "sex_code", "sex", "n")
+  
+  ## Use age_full to create age_min and age_max, the boundaries of the age groups
+  age_eth_hiqual_ref <- age_eth_hiqual_ref |> 
+    filter(area == region) |> 
+    mutate(
+      age_min = case_when(
+        ## If age_full is XXX and under => set age_min to 0
+        grepl("and under", age_full) ~ "0",
+        ## If age_full is "XXX and over" => set age_min to XXX (i.e. remove all
+        ## non numeric characters)
+        grepl("and over", age_full) ~ gsub("[a-z]", "", tolower(age_full)),
+        ## If age_full is "Aged XXX to YYY years" => set age_min to XXX, so 
+        ## remove "Aged " and select everything before the space
+        grepl(" to ", age_full) ~ gsub("Aged ", "", age_full) |> 
+          gsub(pattern = "[ ].*", replacement = ""),
+        ## Otherwise, then age full follows the format "Aged XXX", and age_min
+        ## is XXX
+        .default = gsub("[^0-9.-]", "", age_full)),
+      age_max = case_when(
+        ## If age_full is XXX and over => set age_max to 93
+        grepl("and over", age_full) ~ "93",
+        ## If age_full is XXX and under => set age_max to XXX (i.e. remove all
+        ## non numeric characters)
+        grepl("and under", age_full) ~ gsub("[a-z]", "", tolower(age_full)),
+        ## If age_full is "Aged XXX to YYY years" => set age_max to YYY, so 
+        ## remove " years" and select everything after "to "
+        grepl(" to ", age_full) ~ gsub(" years", "", age_full) |> 
+          gsub(pattern = ".*to ", replacement = ""),
+        ## Otherwise, then age full follows the format "Aged XXX", and age_max
+        ## is XXX
+        .default = gsub("[^0-9.-]", "", age_full))
+    ) |> 
+    mutate(age_min = as.numeric(age_min), 
+           age_max = as.numeric(age_max)) |>
+    ## Below 18, all individuals are considered as children
+    filter(age_min >= 18)
+  
+  ## Mach age_min to age_groups, the age groups in the model
+  age_match <- character()
+  
+  for(i in seq_along(age_eth_hiqual_ref$age_min)){
+    ## For each value of age_min in age_eth_hiqual_ref, set age_match to the highest
+    ## value of age_groups with the lower bound below than age_min[i]
+    if(all((as.numeric(gsub("[-].*", "", age_groups)) > age_eth_hiqual_ref$age_min[i]))){
+      age_match[i] <- NA
+    } else {
+      age_match[i] <- 
+        age_groups[
+          (as.numeric(gsub("[-].*", "", age_groups)) <= age_eth_hiqual_ref$age_min[i]) |> 
+            which() |> max()]
+    }
+  }
+  
+  ## Add age_match to age_eth_hiqual_ref
+  age_eth_hiqual_ref$age_group <- age_match
+  
+  age_eth_hiqual <- 
+    age_eth_hiqual_ref |>  
+    filter(!is.na(age_group)) |> 
+    ## change hh_size to a numeric value
+    mutate(
+      hiqual_code = as.numeric(gsub("[^0-9.-]", "", hiqual_code))) |> 
+    filter(hiqual_code >= 0) |> 
+    ## Rename hh_size to match the model coefficients
+    mutate(hiqual = case_when(
+      hiqual_code == 0 ~ "Noquali", 
+      hiqual_code == 1 ~ "Level1", 
+      hiqual_code == 2 ~ "Level2", 
+      hiqual_code == 3 ~ "Level3", 
+      hiqual_code == 4 ~ "Level4", 
+      hiqual_code == 5 ~ "Apprenti",
+      .default = NA)) |> 
+    ## Sum n over the new values of hh_size
+    group_by(hiqual, sex, age_group, ethnic_group) |> 
     summarise(n = sum(n), .groups = "drop") |> 
-    ## Compute the proportion
-    mutate(prop = n / Denominator) |> 
-    group_by()
-  colnames(eth_income) <- c("income", "ethnicity", "denominator", "n", "prop")
+    ## Compute the distribution of household size by age and ethnic group 
+    group_by(sex, age_group, ethnic_group) |> 
+    mutate(tot = sum(n), prop = n /sum(n))
   
-  eth_income <- eth_income |> select(income, ethnicity, prop)
+  age_eth_hiqual$prop[is.nan(age_eth_hiqual$prop)] <- 0
   
-  return(eth_income)
+  return(age_eth_hiqual)
 }
 
 ## dataset from https://www.ons.gov.uk/datasets/create
@@ -259,7 +318,7 @@ clean_employ <- function(age_groups, region = "England"){
     ## Below 18, all individuals are considered as children
     filter(age_min >= 18)
   
-  ## Mach age_min to age_groups, the age groups in the model
+  ## Match age_min to age_groups, the age groups in the model
   age_match <- character()
   age_group_adult <- age_groups[as.numeric(gsub(".*[-]", "", age_groups)) >= 18]
 
