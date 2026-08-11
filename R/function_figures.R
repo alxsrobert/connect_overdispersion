@@ -3,7 +3,7 @@
 #' @param list_regression list of regression object
 #' @param which_model Model(s) to plot
 #' @param filter_group Group(s) to plot (if set to NULL, all groups are plotted),
-#' set of possible groups: "intercept", "age", "ethnicity_rural", "income",
+#' set of possible groups: "intercept", "age", "ethnicity_rural", "hiqual",
 #' "employment", "household", "shape", "others"
 #'
 #' @return ggplot object
@@ -11,9 +11,8 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
   # Create a tibble containing all coefficient estimates and CIs for all models
   dt_coef <- clean_list_regression_output(list_regression)
   lev_ref <- 
-    unique(c("hh_size: One", "White_Urban", "Employed", "Lessthan20000", 
-             "20000-39999", "Female", "Male", "weekday", "0-4", "5-9",
-             "10-14", "15-17", "18-24", levels(dt_coef$term)))
+    unique(c("hh_size: One", "White_Urban", "Employed", "Female", "Male", "Level1",
+             "weekday", "0-4", "5-9", "10-14", "15-17", "18-24", levels(dt_coef$term)))
 
   # Add reference levels
   dt_coef <- rbind.data.frame(
@@ -31,8 +30,8 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
       model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "shape"),
     cbind.data.frame(
-      model = which_model, term = "20000-39999", estimate = 1, conf.low = 1, 
-      conf.high = 1, group = "income"),
+      model = which_model, term = "Level1", estimate = 1, conf.low = 1, 
+      conf.high = 1, group = "hiqual"),
     cbind.data.frame(
       model = which_model, term = "hh_size: One", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "household"),
@@ -62,7 +61,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
       group %in% c("gender", "day_of_the_week", "urban_rural") ~ "others",
       !group %in% c("gender", "day_of_the_week", "urban_rural") ~ group),
       group = factor(group, levels = c("age", "ethnicity", "ethnicity_rural", "employment",
-                                       "income", "shape", "household", "others"))
+                                       "hiqual", "shape", "household", "others"))
     )
   
   if(!is.null(filter_group)){
@@ -75,8 +74,8 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "age"] <- "Age group"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "employment"] <- 
     "Employment status"
-  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
-    "Household income"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "hiqual"] <- 
+    "Highest qualification"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
     "Dispersion parameter"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
@@ -89,7 +88,6 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
   levels(dt_coef_plot$term) <- gsub("_Rural", " and\n Rural", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("_Urban", " and\n Urban", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("hh_size: ", "", levels(dt_coef_plot$term))
-  levels(dt_coef_plot$term) <- gsub("Lessthan", "<", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("Over", ">=", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("000_", "000 to ", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("Lookingafterhomeorfamily", 
@@ -126,7 +124,7 @@ figure_parameter_model <- function(list_regression, which_model, filter_group = 
 #' @param list_regression list of regression object
 #' @param which_model Model to plot
 #' @param filter_group Group(s) to plot (if set to NULL, all groups are plotted),
-#' set of possible groups: "intercept", "age", "ethnicity_rural", "income",
+#' set of possible groups: "intercept", "age", "ethnicity_rural", "hiqual",
 #' "employment", "household", "shape", "others"
 #'
 #' @return forest plot of the parameter estimates
@@ -136,8 +134,8 @@ figure_forest_plot <- function(list_regression, which_model){
   # Extract the terms from the regression, putting the reference levels first
   lev_ref <- 
     unique(c("hh_size: One", grepv("_Urban", levels(dt_coef$term)), "White_Urban",
-             "Employed", "Lessthan20000", "20000-39999", "Female", "Male",
-             "weekday", "0-4", "5-9", "10-14", "15-17", "18-24", levels(dt_coef$term)))
+             "Employed", "Female", "Male", "weekday", "0-4", "5-9", "10-14", 
+             "15-17", "18-24", levels(dt_coef$term)))
   
   # Add reference levels
   dt_coef <- rbind.data.frame(
@@ -155,8 +153,8 @@ figure_forest_plot <- function(list_regression, which_model){
       model = which_model, term = "White_Urban", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "shape"),
     cbind.data.frame(
-      model = which_model, term = "20000-39999", estimate = 1, conf.low = 1, 
-      conf.high = 1, group = "income"),
+      model = which_model, term = "Level1", estimate = 1, conf.low = 1,
+      conf.high = 1, group = "hiqual"),
     cbind.data.frame(
       model = which_model, term = "hh_size: One", estimate = 1, conf.low = 1, 
       conf.high = 1, group = "household"),
@@ -181,7 +179,7 @@ figure_forest_plot <- function(list_regression, which_model){
              !term %in% "(Intercept)") |> 
     mutate(
       group = factor(group, levels = c("age", "ethnicity", "ethnicity_rural", "employment",
-                                       "income", "shape", "household", "gender",
+                                       "hiqual", "shape", "household", "gender",
                                        "day_of_the_week"))
     )
   # Set ethnicity rural and shape as the top panels
@@ -192,8 +190,8 @@ figure_forest_plot <- function(list_regression, which_model){
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "age"] <- "Age group"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "employment"] <- 
     "Employment\n status"
-  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "income"] <- 
-    "Household\n income"
+  levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "hiqual"] <- 
+    "Highest\n qualification"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "shape"] <- 
     "Ethnicity\nurban/rural\n(dispersion)"
   levels(dt_coef_plot$group)[levels(dt_coef_plot$group) == "household"] <- 
@@ -208,7 +206,6 @@ figure_forest_plot <- function(list_regression, which_model){
   levels(dt_coef_plot$term) <- gsub("_Rural", " and Rural", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("_Urban", " and Urban", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("hh_size: ", "", levels(dt_coef_plot$term))
-  levels(dt_coef_plot$term) <- gsub("Lessthan", "<", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("Over", ">=", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("000_", "000 to ", levels(dt_coef_plot$term))
   levels(dt_coef_plot$term) <- gsub("Lookingafterhomeorfamily", 
@@ -341,24 +338,34 @@ figure_density <- function(prediction_populations, prop_above = 0, log = TRUE,
   
   ## Generate the density plot
   gg <- 
-    prediction_populations |> 
-    mutate(type = factor(type, label_predictions)) |> 
-    group_by(ethnicity_rural, type) |> 
-    # Rank observations in each ethnicity and type
-    mutate(rank_contact = rank(contact, ties.method = "first")/length(contact)) |> 
-    # Filter out the bottom prop_above proportion of individuals
-    filter(rank_contact > prop_above) |>
-    reframe(n_contact = density(contact)$x,
-              density = density(contact)$y) |> 
-    filter(density > .001) |> 
-    ggplot(aes(x = n_contact, y = density, col = ethnicity_rural, 
-               fill = ethnicity_rural, ymax = density)) + 
-    geom_line(lwd = 1.5) +
-    geom_ribbon(alpha = .4, ymin = 0) +
-    ylab("Density") + xlab("Number of contacts") +
-    labs(fill = "ethnicity", col = "ethnicity") + facet_wrap(type~., ncol = 1) + 
-    scale_fill_manual(values = cols) + scale_color_manual(values = cols) + 
-    ylim(0, NA)
+    prediction_populations |>
+    mutate(type = factor(type, label_predictions)) |>
+    group_by(ethnicity_rural, type) |>
+    # Empirical PMF: probability mass at each integer contact value
+    count(ethnicity_rural, type, contact, name = "n") |>
+    ungroup() |>
+    complete(
+      ethnicity_rural, type,
+      contact = c(0.5, 1:500),
+      fill = list(n = 0)
+      ) |>
+    group_by(ethnicity_rural, type) |>
+    # Convert to probability mass and then cumulative
+    mutate(
+      prob = n / sum(n),
+      cum_prob = cumsum(prob)
+      ) |>
+    ungroup() |>
+    mutate(cum_prob = case_when(cum_prob > 0.999 ~ 1, .default = cum_prob)) |> 
+    ggplot(aes(x = contact, col = ethnicity_rural, fill = ethnicity_rural)) +
+    geom_line(aes(y = 1 - cum_prob), lwd = .5) +
+    ylab("Probability") +
+    xlab("Number of contacts") +
+    labs(fill = "ethnicity", col = "ethnicity") +
+    facet_wrap(type ~ ., ncol = 1) +
+    scale_fill_manual(values = cols) +
+    scale_color_manual(values = cols) +
+    coord_cartesian(ylim = c(0, .25), xlim = c(5, 200))
   
   if(log) gg <- gg + scale_x_log10()
   if(!is.null(vec_xlim)){
@@ -667,7 +674,7 @@ clean_list_regression_output <- function(list_regression){
   ## Re-format the label of each coefficient
   df_all_results <-  
     df_all_results |> 
-    mutate(term = gsub("p_incomechild_", "p_age_group", term)) |> 
+    mutate(term = gsub("p_hiqualchild_", "p_age_group", term)) |> 
     mutate(
       group = case_when(
         grepl("shape", term) ~ "shape",
@@ -678,14 +685,14 @@ clean_list_regression_output <- function(list_regression){
         grepl("p_urban_rural", term) ~ "urban_rural",
         grepl("day_week", term) ~ "day_of_the_week",
         grepl("employ", term) ~ "employment",
-        grepl("p_income", term) ~ "income",
+        grepl("p_hiqual", term) ~ "hiqual",
         grepl("household", term) ~ "household"),
       term = case_when(
         grepl("p_age_group", term) ~ gsub(pattern = "p_age_group", "", gsub("M", "-", term)),
         grepl("p_gender", term) ~ gsub(pattern = "p_gender", "", term),
         grepl("p_urban_rural", term) ~ gsub(pattern = "p_urban_rural", "", term),
         grepl("day_week", term) ~ gsub(pattern = "day_week", "", term),
-        grepl("p_income", term) ~ gsub(pattern = "p_income|p_income_", "", gsub("M", "_", term)),
+        grepl("p_hiqual", term) ~ gsub(pattern = "p_hiqual|p_hiqual_", "", gsub("M", "_", term)),
         grepl("cat_household", term) ~ gsub(pattern = "cat_household_members", "hh_size: ", term),
         grepl("household", term) ~ "household_linear",
         grepl("employ", term) ~ gsub(pattern = "employ_", "", term),
@@ -698,15 +705,17 @@ clean_list_regression_output <- function(list_regression){
   ## Set reference levels
   df_all_results$term <- factor(df_all_results$term)
   df_all_results$term <- relevel(df_all_results$term, ref = "(Intercept)")
-  df_all_results$term <- relevel(df_all_results$term, ref = "5-9")
-  df_all_results$term <- relevel(df_all_results$term, ref = "Lessthan20000")
-  df_all_results$term <- relevel(df_all_results$term, ref = "0-4")
+  if(any(df_all_results$term == "5-9"))
+    df_all_results$term <- relevel(df_all_results$term, ref = "5-9")
+  if(any(df_all_results$term == "0-4"))
+    df_all_results$term <- relevel(df_all_results$term, ref = "0-4")
   
   if(any(df_all_results$term == "hh_size: Morethan4", na.rm = TRUE)){
     df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Morethan4")
     df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Four")
     df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Three")
-    df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Two")
+    if(any(df_all_results$term == "hh_size: Two"))
+      df_all_results$term <- relevel(df_all_results$term, ref = "hh_size: Two")
   }
   
   return(df_all_results)

@@ -8,12 +8,12 @@
 #' population size of 55,000 inhabitants with 5 ethnicities and 11 age groups).
 #' @param seed integer: seed of the run
 #' @param which_type What type of population is used to generate the feature of 
-#' each individual ("at baseline": only one level of income, gender, age, 
+#' each individual ("at baseline": only one level of hiqual, gender, age, 
 #' household size, and employment) is used; "population": the age, gender, 
-#' household size, income, and employment distribution in the simulated 
+#' household size, hiqual, and employment distribution in the simulated 
 #' population corresponds to the overall distribution in the UK by age;
 #' "ethnicity-stratified\n population": the distribution of age, gender, 
-#' household size, income, and employment in the simulated population 
+#' household size, hiqual, and employment in the simulated population 
 #' corresponds to the distribution *by ethnicity* and age in the UK.
 #' @param vec_ethnicity_rural Vector indicating the levels of ethnicity
 #' in the synthetic population
@@ -90,12 +90,12 @@ create_contact_in_pop <- function(
 #' 1000 individuals for each level of age and ethnicity, so an overall 
 #' population size of 55,000 inhabitants with 5 ethnicities and 11 age groups).
 #' @param which_type What type of population is used to generate the feature of 
-#' each individual ("at baseline": only one level of income, gender, age, 
+#' each individual ("at baseline": only one level of hiqual, gender, age, 
 #' household size, and employment) is used; "population": the age, gender, 
-#' household size, income, and employment distribution in the simulated 
+#' household size, hiqual, and employment distribution in the simulated 
 #' population corresponds to the overall distribution in the UK by age;
 #' "ethnicity-stratified\n population": the distribution of age, gender, 
-#' household size, income, and employment in the simulated population 
+#' household size, hiqual, and employment in the simulated population 
 #' corresponds to the distribution *by ethnicity* and age in the UK.
 #' @param vec_ethnicity_rural Vector indicating the levels of ethnicity
 #' in the synthetic population
@@ -103,24 +103,17 @@ create_contact_in_pop <- function(
 #' the distribution of ethnicity, age by ethnicity, household size, and 
 #' employment status.
 #'
-#' @return Data frame containing the age group, gender, household size, income, 
+#' @return Data frame containing the age group, gender, household size, hiqual, 
 #' employment status, and ethnicity for each individual.
 create_pop <- function(
     model, tot_pop_size, each, which_type, vec_ethnicity_rural, region){
-  ### First, we want to import the distribution of household size, income, 
+  ### First, we want to import the distribution of household size, hiqual, 
   ### employment status, age group and ethnicity in the population.
   ## We use the age groups from the regression model, and order them in 
   ## increasing order.
-  all_age_groups <- c("18-24",
-    grepv("p_age_group", model$fit@sim$fnames_oi) |> 
-      gsub(pattern = "b_p_age_group", replacement = "") |> 
-      gsub(pattern = "M", replacement = "-")
-  )
-  
-  all_age_groups <- all_age_groups[!grepl("shape", all_age_groups)]
-  age_group_order <- order(as.numeric(gsub(".*[-+]", "", all_age_groups)))
-  age_group_level <- unique(all_age_groups)[age_group_order]
-  
+  age_group_level <- c("0-4", "5-9", "10-14", "15-17", "18-24", "25-29", 
+                       "30-39", "40-49", "50-59", "60-69", "70-93")
+   
   n_level <- length(vec_ethnicity_rural)  
   
   # Create population according to the type
@@ -134,7 +127,7 @@ create_pop <- function(
       p_gender = "Female",
       cat_household_members = "Three",
       employ = "employed",
-      income = "p_income_20000_39999"
+      hiqual = "Level4"
     ) |> mutate(ethnicity = gsub("[_].*", "", ethnicity_rural))
     
     
@@ -149,8 +142,12 @@ create_pop <- function(
       summarise(n = sum(n), .groups = "drop") |>
       group_by(age_group) |>
       mutate(tot = sum(n), prop = n /sum(n), ethnic_group = "All")
-    ## Proportion of household income in England, stratified by ethnic group
-    dt_income <- clean_income() |> filter(ethnicity == "All")
+    ## Proportion of hiqual in England, stratified by ethnic group
+    dt_hiqual <- clean_hiqual(age_group_level, region = region) |> 
+      group_by(age_group, hiqual, sex) |>
+      summarise(n = sum(n), .groups = "drop") |>
+      group_by(age_group, sex) |>
+      mutate(tot = sum(n), prop = n /sum(n), ethnic_group = "All")
     ## Proportion of employment status in England, stratified by age, gender, and
     ## ethnic group
     ## Group all ethnicities, then compute proportion
@@ -200,12 +197,17 @@ create_pop <- function(
         dt_hh_size$hh_size[dt_hh_size$age_group == age], 
         replace = TRUE, size = 1, 
         dt_hh_size$prop[dt_hh_size$age_group == age])) |> 
-      # For each row, use dt_income to draw the household income given the age of 
-      # each individual
-      mutate(income = sample(
-        dt_income$income, 
-        replace = TRUE, size = 1, 
-        dt_income$prop)) |>
+      # For each row, use dt_hiqual to draw the highest qualification given the 
+      # age, ethnicity and gender of each individual
+      mutate(hiqual = ifelse(
+        as.numeric(gsub(".*[-]", "", age)) >= 18, yes = 
+          sample(
+            dt_hiqual$hiqual[dt_hiqual$sex  == p_gender & 
+                               dt_hiqual$age_group == age], 
+            replace = TRUE, size = 1, 
+            dt_hiqual$prop[dt_hiqual$sex  == p_gender & 
+                             dt_hiqual$age_group == age]),
+        no = "child")) |>
       # For each row, use dt_employ to draw the employment status given the age 
       # and gender of each individual. In age is below 18, employ is set to "child"
       mutate(employ = ifelse(
@@ -235,8 +237,9 @@ create_pop <- function(
       ## Proportion of household size in England, stratified by age and ethnic group
       dt_hh_size_i <- clean_hh_size(age_group_level, region = region) |> 
         filter(grepl(ethnic_i, ethnic_group))
-      ## Proportion of household income in England, stratified by ethnic group
-      dt_income_i <- clean_income() |> filter(ethnicity == ethnic_i)
+      ## Proportion of highest qualification in England, stratified by ethnic group
+      dt_hiqual_i <- clean_hiqual(age_group_level, region = region) |> 
+        filter(grepl(ethnic_i, ethnic_group))
       ## Proportion of employment status in England, stratified by age, gender, and
       ## ethnic group
       dt_employ_i <- clean_employ(age_group_level, region = region) |> 
@@ -270,12 +273,17 @@ create_pop <- function(
           dt_hh_size_i$hh_size[dt_hh_size_i$age_group == age], 
           replace = TRUE, size = 1, 
           dt_hh_size_i$prop[dt_hh_size_i$age_group == age])) |> 
-        # For each row, use dt_income to draw the household income given the age
-        # of each individual
-        mutate(income = sample(
-          dt_income_i$income, 
-          replace = TRUE, size = 1, 
-          dt_income_i$prop)) |>
+        # For each row, use dt_hiqual to draw the highest qualification given 
+        # the age of each individual
+        mutate(hiqual = ifelse(
+          as.numeric(gsub(".*[-]", "", age)) >= 18, yes = 
+            sample(
+              dt_hiqual_i$hiqual[dt_hiqual_i$sex  == p_gender & 
+                                   dt_hiqual_i$age_group == age], 
+              replace = TRUE, size = 1, 
+              dt_hiqual_i$prop[dt_hiqual_i$sex  == p_gender & 
+                                 dt_hiqual_i$age_group == age]),
+          no = "child")) |>
         # For each row, use dt_employ to draw the employment status given the age 
         # and gender of each individual. In age is below 18, employ is set to "child"
         mutate(employ = ifelse(
@@ -301,16 +309,16 @@ create_pop <- function(
     mutate(flag = 1, 
            id_indiv = seq_len(nrow(df_indiv))
     ) |> 
-    # Widen according to income
-    pivot_wider(names_from = income, values_from = flag, values_fill = 0
+    # Widen according to highest qualification
+    pivot_wider(names_from = hiqual, values_from = flag, values_fill = 0
     ) |> 
     # Widen according to employ
     mutate(flag = 1) |> 
     pivot_wider(names_from = employ, values_from = flag, values_fill = 0, 
                 names_prefix = "employ_") |> 
-    # Remove child levels, and reference levels for income and employ
+    # Remove child levels, and reference levels for hiqual and employ
     select(-contains("child")) |> 
-    select(-any_of(c("p_income_20000_39999", "employ_employed"))) |> 
+    select(-any_of(c("hiqual_Level1", "employ_employed"))) |> 
     # Set 18-24 as the reference of p_age_group, and add individual id
     mutate(p_age_group = relevel(age, ref = "18-24"),
            id_indiv = row_number())

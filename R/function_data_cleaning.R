@@ -5,10 +5,10 @@ import_and_clean <- function(anonymous = TRUE){
   } else {
   }
   
-  # Risk of co linearity between p_age_group and p_income as the income and 
-  # employment of all individuals aged below 18 is set as "Child - Not Applicable"
+  # Risk of co linearity between p_age_group and p_employ as the employment of 
+  # all individuals aged below 18 is set as "Child - Not Applicable.
   # To fix this:
-  # - Use pivot_wider on "employ" and "p_income"
+  # - Use pivot_wider on "employ" and "p_hiqual"
   # - remove reference levels (respectively "employed" and "20000-39999") AND 
   #   "Child - Not Applicable"
   # This way, in the regression:
@@ -18,19 +18,16 @@ import_and_clean <- function(anonymous = TRUE){
   part_reg <- part_reg |> 
     mutate(flag = 1, 
            id_indiv = seq_len(nrow(part_reg)),
-           p_income = gsub(" |,", "", p_income),
-           p_income = gsub("-", "_", p_income),
            employ = gsub(" |,", "", employ),
-           employ = gsub("-", "_", employ)
+           employ = gsub("-", "_", employ),
     ) |> 
-    pivot_wider(names_from = p_income, values_from = flag, 
-                values_fill = 0, names_prefix = "p_income_"
-    ) |> 
-    mutate(flag = 1) |> 
     pivot_wider(names_from = employ, values_from = flag, values_fill = 0, 
                 names_prefix = "employ_") |> 
+    mutate(flag = 1) |> 
+    pivot_wider(names_from = p_hiqual, values_from = flag, values_fill = 0, 
+                names_prefix = "hiqual_") |> 
     select(-contains("child")) |> 
-    select(-p_income_20000_39999) |> 
+    select(-hiqual_Level1) |> 
     select(-employ_employed) |> 
     mutate(p_age_group = relevel(p_age_group, ref = "18-24"))
   
