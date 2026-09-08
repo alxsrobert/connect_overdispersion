@@ -77,7 +77,7 @@ run_outbreaks <- function(
     ##         that belongs to each transmitter group
     ## - coef: the average number of contacts in each transmitter group of each
     ##         level of age group and ethnicity
-    file_in <- paste0("results/regression_output", if(anonymised) "_anoun", ".rds")
+    file_in <- paste0("results/final_regression", if(anonymised) "_anoun", ".rds")
     list_prop_coef <- create_contact_group(
       scenario_contact_group = scenario_contact_group, n_group = n_group, 
       n_draws = n_draws, file_in = file_in, region = region, seed = NULL, 
