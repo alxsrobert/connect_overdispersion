@@ -1,8 +1,8 @@
 ## Define parameters and initialise result data frames
 source("R/library_and_scripts.R")
 type <- "long" # c("short", "long")
-n_group_sim <- 3
 anoun <- TRUE
+n_group_sim <- 4
 
 if(type == "long") {
   # Number of runs
@@ -33,12 +33,12 @@ df_tot_region <- data.frame()
 
 ## Define input and output files
 file_regression <- paste0(
-  "results/regression_output", if(anoun) "_anoun", ".rds")
+  "results/final_regression", if(anoun) "_anoun", ".rds")
 file_output_cases <- paste0(
   "results/outputmodel_byr0_region", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 file_output_r0 <- paste0(
-  "results/prop_and_r0_clust_region", if(anoun) "_anoun", 
+  "prop_and_r0_clust_region", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 
 
@@ -55,21 +55,21 @@ for(run in seq_len(nb_run)){
     list_prop_coef_sim <- create_contact_group(
       scenario_contact_group = "reference", n_group = n_group_sim, n_draws = 5, 
       region = i, each = each_sim, file_in = file_regression, 
-      which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+      vec_ethnicity_rural = vec_ethnicity)
     
     if(i == "England"){
       list_prop_coef_sim_same_mean <- create_contact_group(
         scenario_contact_group = "same_mean", n_group = n_group_sim, n_draws = 5, 
         region = "England", each = each_sim, file_in = file_regression, 
-        which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+        vec_ethnicity_rural = vec_ethnicity)
       list_prop_coef_sim_same_pop <- create_contact_group(
         scenario_contact_group = "same_pop", n_group = n_group_sim, n_draws = 5, 
         region = "England", each = each_sim, file_in = file_regression, 
-        which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+        vec_ethnicity_rural = vec_ethnicity)
       list_prop_coef_sim_same_all <- create_contact_group(
         scenario_contact_group = "same_all", n_group = n_group_sim, n_draws = 5, 
         region = "England", each = each_sim, file_in = file_regression, 
-        which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+        vec_ethnicity_rural = vec_ethnicity)
     }
     
     ## Use list_prop_coef_sim to generate n_particle outbreaks at different
@@ -250,9 +250,9 @@ for(run in seq_len(nb_run)){
       )
     }
   }
+  ## Save y_result
+  saveRDS(y_result, file_output_cases)
 }
-## Save y_result
-saveRDS(y_result, file_output_cases)
 
 #### Check R0 by beta: by city ####
 
@@ -266,7 +266,7 @@ for(run in seq_len(nb_run)){
     list_prop_coef_sim <- create_contact_group(
       scenario_contact_group = "reference", n_group = n_group_sim, n_draws = 5, 
       region = i, each = each_sim, file_in = file_regression, 
-      which_model = "full_od_cathh", vec_ethnicity_rural = vec_ethnicity)
+      vec_ethnicity_rural = vec_ethnicity)
     for(j in seq_along(all_betas)){
       beta_j <- all_betas[j]
       # Compute r0 from beta_j and list_prop_coef_sim
