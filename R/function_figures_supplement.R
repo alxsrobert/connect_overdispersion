@@ -23,7 +23,9 @@ generate_figureS4S9 <- function(model_regression){
     create_contact_in_pop(
       model = model_regression, n_draws = 5, region = "England", each = 500, seed = 1,
       vec_ethnicity_rural = ethnicity, which_type = "ethnicity-stratified\n population") |>
-    select(ethnicity_rural, p_age_group, contact)
+    select(ethnicity_rural, p_age_group, contact) |> 
+    mutate(contact = case_when(contact > 200 ~ 200, 
+                               .default = contact))
   
   
   for(n_contact in c(3)){

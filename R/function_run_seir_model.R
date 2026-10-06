@@ -422,7 +422,9 @@ create_contact_group <- function(
       which_type = if(scenario_contact_group %in% c("same_pop", "same_all")) 
         "population" else "ethnicity-stratified\n population",
       seed = seed) |> 
-    select(ethnicity_rural, p_age_group, contact)
+    select(ethnicity_rural, p_age_group, contact) |> 
+    mutate(contact = case_when(contact > 200 ~ 200, 
+                               .default = contact))
   
   ## Create the transmitter groups, drawing the proportion of the population and 
   ## the number of contacts in each group.
