@@ -296,11 +296,10 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
     ) + 
     labs(
       x = "Number of contacts",
-      y = "Proportion",
-      title = ""
+      y = "Proportion (%)"
     ) +
     labs(fill = "") + 
-    facet_wrap(~type, ncol = 1) + 
+    facet_grid(~type) + 
     scale_fill_manual(values = cols)
   
 }
