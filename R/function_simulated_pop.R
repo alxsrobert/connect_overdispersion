@@ -78,6 +78,37 @@ create_contact_in_pop <- function(
   df_ov18 <- df_indiv |> 
     filter(!age %in% c("0-4", "5-9", "10-14", "15-17")) |> 
     mutate(p_age_group = factor(p_age_group))
+
+  if(which_type == "at baseline"){
+    ## If scenario_contact_group is same_mean, change the values of coefficients
+    ## associated with ethnicity
+    
+    # Extract parameters associated with ethnicity (mean and OD)
+    pars_ethnicity_u18 <- c(
+      grep("ethnicity", names(model$bel18$fit@sim$samples[[1]])),
+      grep("Intercept", names(model$bel18$fit@sim$samples[[1]])),
+      which(names(model$bel18$fit@sim$samples[[1]]) %in% 
+              c("shape1", "shape2", "hu1", "hu2", "lprior", "lp__"))
+    )
+    pars_ethnicity_ov18 <- c(
+      grep("ethnicity", names(model$ov18$fit@sim$samples[[1]])),
+      grep("Intercept", names(model$ov18$fit@sim$samples[[1]])),
+      which(names(model$ov18$fit@sim$samples[[1]]) %in% 
+              c("shape1", "shape2", "hu1", "hu2", "lprior", "lp__"))
+    )
+    
+    # Set values to 0
+    for(i in seq_along(model$bel18$fit@sim$samples)){
+      model$bel18$fit@sim$samples[[i]][-pars_ethnicity_u18] <- 
+        lapply(model$bel18$fit@sim$samples[[i]][-pars_ethnicity_u18],
+               function(X) return(X * 0))
+    }
+    for(i in seq_along(model$ov18$fit@sim$samples)){
+      model$ov18$fit@sim$samples[[i]][-pars_ethnicity_ov18] <- 
+        lapply(model$ov18$fit@sim$samples[[i]][-pars_ethnicity_ov18],
+               function(X) return(X * 0))
+    }
+  }
   
   df_indiv_with_contact <- 
     ## Predict number of contacts for each row, split between u18 and ov18
@@ -137,21 +168,7 @@ create_pop <- function(
   n_level <- length(vec_ethnicity_rural)  
   
   # Create population according to the type
-  if(which_type == "at baseline"){
-    ## type = baseline: Using one level for each variable, only ethnicity changes
-    pop_size <- round(tot_pop_size / n_level) * n_level
-    df_indiv <- tibble(
-      age = factor("18-24", levels = age_group_level),
-      ethnicity_rural = rep(vec_ethnicity_rural, pop_size / n_level),
-      day_week = "weekday",
-      p_gender = "Female",
-      cat_household_members = "Three",
-      employ = "employed",
-      hiqual = "Level4"
-    ) |> mutate(ethnicity = gsub("[_].*", "", ethnicity_rural))
-    
-    
-  } else if(which_type == "population"){
+  if(which_type == "population"){
     ## type = population: Using the distribution of each variable in the whole 
     ## population. In df_indiv, only ethnicity changes
     
@@ -243,7 +260,7 @@ create_pop <- function(
         employ = gsub("-", "_", employ))|> 
       ungroup()
     
-  } else if(which_type == "ethnicity-stratified\n population"){
+  } else if(which_type %in% c("ethnicity-stratified\n population", "at baseline")){
     ## type = ethnicity-stratified population: Using the distribution of each 
     ## variable in the population for each ethnicity.
     df_indiv <- tibble()
