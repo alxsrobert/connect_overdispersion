@@ -698,3 +698,144 @@ generate_figure_figcity <- function(y_result, cols_ethnicity){
   print(p_prop_AS)
   dev.off()
 }
+
+# Figure: model comparison
+generate_figure_looic <- function(compar_model){
+  # Split and rename <18 and >=18 models
+  plot_data <- compar_model |>
+    mutate(
+      age_label = case_when(
+        age_group == "bel18" ~ "Children (<18 years)",
+        age_group == "ov18"  ~ "Adults (18+ years)",
+        TRUE ~ age_group
+      ),
+      # Unique model IDs allow ordering within each age category.
+      model_id = paste(age_group, model, sep = "::")
+    ) |>
+    arrange(age_group, rank)
+  
+  # First-ranked model appears at the top of each panel.
+  plot_data$model_id <- factor(
+    plot_data$model_id, levels = rev(unique(plot_data$model_id))
+  )
+  
+  ## Rename models
+  plot_data <- 
+    plot_data |> 
+    mutate(model_id = case_when(
+      model == "bel18_model_1" ~ "Mixture of hurdle NB distributions",
+      model == "bel18_model_3" ~ "Mixture of hurdle NB distributions\nEthnic group and age only",
+      model == "bel18_model_4" ~ "Mixture of NB distributions",
+      model == "bel18_model_2" ~ "Single hurdle NB distribution",
+      model == "ov18_model_1" ~  "Mixture of NB distributions\nEthnic group, Employment status",
+      model == "ov18_model_2" ~  "Mixture of NB distributions\nSubethnic group, Employment status",
+      model == "ov18_model_3" ~  "Mixture of NB distributions\nEthnic group, NS-SEC",
+      model == "ov18_model_4" ~  "Mixture of NB distributions\nEthnic group, Employment status,\nHighest qualification",
+      model == "ov18_model_5" ~  "Mixture of NB distributions\nSubethnic group, Employment status,\nHighest qualification",
+      model == "ov18_model_6" ~  "Mixture of NB distributions\nEthnic group and age only",
+      model == "ov18_model_7" ~  "Single NB distribution\n Ethnic group, Employment status,\nHighest qualification"
+    ),
+    model_id = factor(model_id, levels = c(
+      "Mixture of hurdle NB distributions",
+      "Mixture of hurdle NB distributions\nEthnic group and age only",
+      "Mixture of NB distributions",
+      "Single hurdle NB distribution",
+      "Mixture of NB distributions\nSubethnic group, Employment status,\nHighest qualification",
+      "Mixture of NB distributions\nEthnic group, Employment status",
+      "Mixture of NB distributions\nSubethnic group, Employment status",
+      "Mixture of NB distributions\nEthnic group, NS-SEC",
+      "Mixture of NB distributions\nEthnic group, Employment status,\nHighest qualification",
+      "Mixture of NB distributions\nEthnic group and age only",
+      "Single NB distribution\n Ethnic group, Employment status,\nHighest qualification"
+    )),
+    age_label = case_when(
+      age_label == "Children (<18 years)" ~ paste0(age_label, ",\nReference: Mixture of hurdle negative binomial distributions"),
+      age_label == "Adults (18+ years)" ~ 
+        paste0(age_label, ",\nReference: Mixture of negative binomial distributions\nEthnic group, Employment status, Highest qualification"),
+    ),
+    age_label = factor(age_label, levels = c(
+      "Children (<18 years),\nReference: Mixture of hurdle negative binomial distributions", 
+      "Adults (18+ years),\nReference: Mixture of negative binomial distributions\nEthnic group, Employment status, Highest qualification"
+    ))) |> 
+    filter(!model %in% c("ov18_model_4", "bel18_model_1"))
+  
+  p_loo <- (
+    plot_data |> 
+      ggplot(aes(x = delta_looic, y = model_id)) +
+      geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60") +
+      geom_segment(aes(x = delta_looic - se_delta_looic, xend = delta_looic + se_delta_looic,
+                       yend = model_id), linewidth = 0.6) +
+      geom_point(size = 2.8) +
+      facet_wrap(~ age_label, scales = "free",
+                 space = "free_y", 
+                 ncol = 1) +
+      scale_y_discrete(expand = expansion(add = 0.5)) +
+      labs(x = expression(Delta * "LOOIC relative to best-ranked model"),
+           y = NULL, colour = NULL) +  
+      theme_bw(base_size = 12) +
+      theme(
+        legend.position = "bottom",
+        panel.grid.minor = element_blank(),
+        strip.text = element_text(face = "bold"),
+        strip.background = element_blank()
+      )) 
+  
+  p_combined <- 
+    (p_loo + coord_cartesian(xlim = c(-10, 150))) +
+    (p_loo + xlim(200, NA)) +
+    plot_layout(axis_titles = "collect", axes = "collect")
+  
+  # Convert to a gtable so facet strips can span both columns.
+  g <- patchwork::patchworkGrob(p_combined)
+  
+  # Find the facet strips placed above the panels.
+  strip_ids <- grep("^strip-t", g$layout$name)
+  
+  # Group strips occupying the same horizontal band.
+  strip_rows <- split(strip_ids, paste(g$layout$t[strip_ids], g$layout$b[strip_ids],
+                                       sep = "_"))
+  
+  for (ids in strip_rows) {
+    keep <- ids[which.min(g$layout$l[ids])]
+    
+    g$layout$l[keep] <- min(g$layout$l[ids])
+    g$layout$r[keep] <- max(g$layout$r[ids])
+    
+    # Hide the duplicate title on the right.
+    for (remove in setdiff(ids, keep)) {
+      g$grobs[[remove]] <- grid::nullGrob()
+    }
+  }
+  
+  
+  adult_title <- g$grobs[[16]]
+  
+  adult_strip_ids <- grep(
+    "^strip-t",
+    adult_title$layout$name
+  )
+  
+  # Keep only the strip; hide panels, axes, and guides.
+  for (j in setdiff(seq_along(adult_title$grobs),adult_strip_ids)) {
+    adult_title$grobs[[j]] <- grid::nullGrob()
+  }
+  
+  adult_title$widths <- grid::unit(1, "null")
+  
+  g <- gtable::gtable_add_grob(
+    g, grobs = adult_title, t = g$layout$t[16], b = g$layout$b[16],
+    l = min(g$layout$l[c(16, 31)]), r = max(g$layout$r[c(16, 31)]), z = Inf, 
+    clip = "off", name = "shared-adult-strip"
+  )
+  
+  g$grobs[[31]]$grobs[[5]] <- grid::nullGrob()
+  g$grobs[[16]]$grobs[[5]] <- grid::nullGrob()
+  
+  ggsave(
+    "figures/s_looic.pdf",
+    plot = g,
+    width = 8,
+    height = 8
+  )
+}
+
