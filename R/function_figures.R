@@ -411,7 +411,6 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
     
   ## Number of inhabitants per strata
   n_pop <- (y$S + y$E + y$I + y$R)[,1,1]
-  
   # Only plot 5 of the trajectories
   sample_sim <- sample(seq_len(ncol(y$S)), min(5, ncol(y$S)))
   
@@ -727,3 +726,378 @@ clean_list_regression_output <- function(list_regression){
   
   return(df_all_results)
 }
+
+
+#' Figure with four quadrants showing the parameter estimates from the regression
+#' models
+#' @param model List of named bayesian regression objects (bel18 and ov18)
+#' @param ov18 Boolean, if TRUE, show parameter estimates in the ov18 model, otherwise
+#' show the parameter estimates in bel18
+#' @param viz_mu1 boolean, if TRUE, show the covariates on the mu1 / mu2 axes 
+#' (typically that would be household size), otherwise, show the covariates on 
+#' the pi / mu2 axis
+#' @param which_cov Optional, vector containing the names of the covariates
+#' that should be printed. If NULL, all covariates are printed,
+#' @param label optional, boolean indicating whether to show the quadrant labels.
+#' 
+#'
+#' @return Figure with four quadrants showing the parameter estimates from the regression
+#' models
+#' 
+show_regression_params <- function(model, ov18, viz_mu1, which_cov = NULL, 
+                                   label = TRUE){
+  # Extract coefficients
+  if(ov18){
+    coef_model <- fixef(model$ov18)
+  } else coef_model <- fixef(model$bel18)
+  
+  # Define axis limits
+  x_min <- -2.2; x_max <- 2.2
+  y_min <- -1.8; y_max <- 1.8
+
+  ## Extract coefficient estimates by covariate
+  coef_model <- 
+    cbind.data.frame(param = rownames(coef_model), coef_model, row.names = NULL)
+  
+  covariate_patterns <- c(
+    "cat_household_members",
+    "p_age_group",
+    "p_gender",
+    "day_week",
+    "employ_",
+    "hiqual_",
+    "ethnicity_rural"
+  )
+  # Add reference level for every covariate
+  coef_model <- coef_model |>
+    rbind.data.frame(
+      list(param = "mu1_cat_household_membersOne (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu1_cat_household_membersTwo (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_p_age_group18M24 (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_p_age_group0M4 (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_p_genderFemale (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_day_weekweekday (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_ethnicity_ruralWhite_Urban (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_cat_household_membersOne (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_cat_household_membersTwo (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_employ_Employed (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "mu2_hiqual_Level1 (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "theta2_p_age_group18M24 (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "theta2_p_age_group0M4 (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "theta2_p_genderFemale (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "theta2_day_weekweekday (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "theta2_hiqual_Level1 (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "theta2_employ_Employed (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0),
+      list(param = "theta2_ethnicity_ruralWhite_Urban (ref)", Estimate = 0, Est.Error = 0, Q2.5 = 0, Q97.5 = 0)
+    ) |> 
+    ## Extract component
+    mutate(
+      distpar = str_extract(param, "^(mu1|mu2|theta2)"),
+      remainder = str_remove(param, "^(mu1|mu2|theta2)_"),
+      covariate = case_when(
+        ## Extract intercept
+        remainder == "Intercept" ~ "Intercept",
+        TRUE ~ map_chr(remainder, function(x) {
+          hit <- covariate_patterns[str_starts(x, covariate_patterns)]
+          if (length(hit) == 0) NA_character_ else hit[1]
+        })
+      ),
+      level = if_else(
+        covariate == "Intercept",
+        "Intercept",
+        str_remove(remainder, covariate)
+      )
+    ) |>
+    select(-remainder)
+  
+  if(!ov18) {
+    ## Remove the employ and highest qualification covariates in <18
+    coef_model <- coef_model |> 
+      filter(!grepl("employ", covariate), !grepl("hiqual", covariate),
+             !level %in% c("One (ref)", "18M24 (ref)"))
+  } else {
+    coef_model <- coef_model |> 
+      filter(!level %in% c("Two (ref)", "0M4 (ref)"))
+  }
+  
+  ## Reshape so that mu1, mu2, theta2 estimates (and their CrIs)
+  ## for the *same covariate level* sit on the same row, to plot one
+  ## distributional parameter against another.
+  
+  wide <- coef_model |>
+    select(distpar, covariate, level, Estimate, Q2.5, Q97.5) |>
+    mutate(
+      Estimate = exp(Estimate),
+      Q2.5 = exp(Q2.5),
+      Q97.5 = exp(Q97.5),
+    ) |> 
+    pivot_wider(
+      names_from  = distpar,
+      values_from = c(Estimate, Q2.5, Q97.5),
+      names_glue  = "{distpar}_{.value}"
+    )
+  
+  if(is.null(which_cov)) which_cov <- unique(wide$covariate)
+  
+  ## Decide x/y pair per row: prefer mu1 vs mu2; if mu1 is missing
+  ## for that covariate (e.g. age/gender/day/ethnicity only model mu2 &
+  ## theta2), use mu2 vs theta2 instead.
+  wide <- wide |>
+    mutate(
+      has_mu1 = !is.na(mu1_Estimate),
+      x_est   = if_else(has_mu1, true = mu1_Estimate, false = theta2_Estimate),
+      x_lo    = if_else(has_mu1, true = mu1_Q2.5,     false = theta2_Q2.5),
+      x_hi    = if_else(has_mu1, true = mu1_Q97.5,    false = theta2_Q97.5),
+      x_lab   = if_else(has_mu1, true = "mu1", false = "theta2"),
+      y_est   = mu2_Estimate,
+      y_lo    = mu2_Q2.5,
+      y_hi    = mu2_Q97.5,
+      y_lab   = "mu2"
+    ) |>
+    filter(!is.na(x_est) & !is.na(y_est))   # drop rows where the pairing has no data
+  
+  ## Nice facet labels
+  wide <- wide |> 
+    mutate(
+      area_type = case_when(
+        str_detect(level, regex("urban", ignore_case = TRUE)) ~ "Urban",
+        str_detect(level, regex("rural", ignore_case = TRUE)) ~ "Rural",
+        TRUE ~ NA_character_
+      ),
+      level_short = level %>%
+        str_remove(regex(",?\\s*urban", ignore_case = TRUE)) %>%
+        str_remove(regex(",?\\s*rural", ignore_case = TRUE)) %>%
+        str_trim()
+    ) |> filter(covariate != "Intercept",
+                level %notin% c("Other", "NonWhite_Rural")) |>
+    mutate(
+      ## Rename covariates
+      covariate_label = recode(covariate,
+                               "cat_household_members" = "Household size",
+                               "p_age_group"            = "Age group",
+                               "p_gender"               = "Gender",
+                               "day_week"               = "Weekday",
+                               "hiqual_"                = "Highest qualification",
+                               "employ_"                = "Employment status",
+                               "ethnicity_rural"        = "Ethnicity / rurality"
+      ),
+      ## Rename levels
+      level = recode(level,
+                     "Morethan4" = "More than\nFour",
+                     "0M4 (ref)" = "0 to 4 (ref)",
+                     "5M9" = "5 to 9",
+                     "10M14" = "10 to 14",
+                     "15M17" = "15 to 17",
+                     "18M24 (ref)" = "18 to 24 (ref)",
+                     "25M29" = "25 to 29",
+                     "30M39" = "30 to 39",
+                     "40M49" = "40 to 49",
+                     "50M59" = "50 to 59",
+                     "60M69" = "60 to 69",
+                     "70M93" = ">70",
+                     "weekday" = "Weekday",
+                     "unemployed" = "Unemployed",
+                     "Long_termsickordisabled" = "Sick, disabled",
+                     "Lookingafterhomeorfamily" = "Home",
+                     "Noquali" = "0",
+                     "Level1 (ref)" = "1 (ref)",
+                     "Level2" = "2",
+                     "Level3" = "3",
+                     "Level4" = "4",
+                     "Apprenti" = "Apprentice",
+                     "Asian_Urban" = "Asian",
+                     "Black_Urban" = "Black",
+                     "Mixed_Urban" = "Mixed",
+                     "NonWhite_Rural" = "Non-white",
+                     "Other_Urban" = "Other",
+                     "White_Rural" = "White",
+                     "White_Urban (ref)" = "White (ref)"
+      ),
+      axis_label = paste0(x_lab, " vs ", y_lab)
+    )
+  
+  area_colours <- c("Urban" = "#1B9E77", "Rural" = "#D95F02")
+  
+  ## Set ethnicity / rurality as the first panel if applicable
+  if(viz_mu1){
+    wide <- wide |> filter(has_mu1) 
+    which_row <- which(wide$covariate %in% which_cov)
+    wide <- wide |> filter(covariate %in% which_cov)
+  } else {
+    wide <- wide |> filter(!has_mu1)
+    which_row <- which(wide$covariate %in% which_cov)
+    wide <- wide |> filter(covariate %in% which_cov) |> 
+      mutate(covariate_label = factor(covariate_label))
+    if(any(wide$covariate_label == "Ethnicity / rurality")) {
+      wide <- wide |> 
+      mutate(
+        covariate_label = relevel(factor(covariate_label), ref = "Ethnicity / rurality")
+      )
+    } else {
+      wide <- wide |> 
+        mutate(
+          covariate_label = relevel(factor(covariate_label), ref = "Gender")
+        )
+    }
+  }
+  
+  ## small data frame of quadrant rectangles, one set per facet panel
+  
+  quadrant_rects <- tibble::tribble(
+    ~quadrant,        ~xmin,  ~xmax, ~ymin,  ~ymax,   ~fill,
+    "top_right",        0,    x_max,  0,     y_max,  "#4DAF4A",
+    "top_left",       x_min,   0,     0,     y_max,  "#377EB8",
+    "bottom_right",     0,    x_max, y_min,  0,       "#FF7F00",
+    "bottom_left",    x_min,   0,    y_min,  0,       "#E41A1C"
+  ) |> 
+    mutate(
+      xmin = exp(xmin),
+      xmax = exp(xmax),
+      ymin = exp(ymin),
+      ymax = exp(ymax)
+    )
+  
+  ## Expand across all facet levels present in `wide`
+  quadrant_rects_all <- quadrant_rects %>%
+    tidyr::crossing(covariate_label = unique(wide$covariate_label))
+  
+  ## Quadrant text labels
+  if(viz_mu1){
+    quadrant_labels <- tibble::tribble(
+      ~x,              ~y,             ~hjust, ~vjust, ~label,
+      x_max * 0.98,    y_max * 0.95,   1,      1,      "Higher mean in low-mean\nHigher mean in high-mean",
+      x_min * 0.98,    y_max * 0.95,   0,      1,      "Lower mean in low-mean\nHigher mean in high-mean",
+      x_max * 0.98,    y_min * 0.95,   1,      0,      "Higher mean in low-mean\nLower mean in high-mean",
+      x_min * 0.98,    y_min * 0.95,   0,      0,      "Lower mean in low-mean\nLower mean in high-mean"
+    ) %>%
+      mutate(covariate_label = "Household size")   # matches the top-left panel's facet label
+  } else {
+    quadrant_labels <- tibble::tribble(
+      ~x,              ~y,             ~hjust, ~vjust, ~label,
+      x_max * 0.98,    y_max * 0.95,   1,      1,      "More individuals in high-mean\nHigher mean in high-mean",
+      x_min * 0.98,    y_max * 0.95,   0,      1,      "Fewer individuals in high-mean\nHigher mean in high-mean",
+      x_max * 0.98,    y_min * 0.95,   1,      0,      "More individuals in high-mean\nLower mean in high-mean",
+      x_min * 0.98,    y_min * 0.95,   0,      0,      "Fewer individuals in high-mean\nLower mean in high-mean"
+    ) %>%
+      mutate(covariate_label = factor(levels(wide$covariate_label)[1], 
+                                      levels = levels(wide$covariate_label)))   # matches the top-left panel's facet label
+  }
+  if(!label) quadrant_labels$label <- ""
+  quadrant_labels <- quadrant_labels |> 
+    mutate(
+      x = exp(x),
+      y = exp(y)
+    )
+  
+  if(ov18 & !viz_mu1){
+    # shift label start position before repelling
+    vec_nudge_x = c(-1, .5, -.5, -.2, -1, 1, -1, 1, -1, 0, -1, -.2, -.5, -.1, -.5, 1, 1.5, 
+                    -1, -1, 1, -.5, 1, .2, 1, .2, .2, 1, 2, -1)[which_row]
+    # shift label start position before repelling
+    vec_nudge_y = c(-.5, -1, 1, -.8, -.1, .2, -.5, -.5, .5, -1, .2, .2, -1, -1, 1, .5, -.2,
+                    .5, .5, .5, -1, .5, .2, 1, .2, .2, .3, -0.5, -1)[which_row]
+    vec_nudge_x[wide$level == "Asian"] <- -1
+    vec_nudge_y[wide$level == "Asian"] <- -.5
+    vec_nudge_x[wide$level == "White (ref)"] <- -.5
+    vec_nudge_y[wide$level == "White (ref)"] <- 1
+    vec_nudge_x[wide$level == "Mixed"] <- 1
+    vec_nudge_y[wide$level == "Mixed"] <- .5
+    vec_nudge_x[wide$level == "White"] <- -1
+    vec_nudge_y[wide$level == "White"] <- .7
+    vec_nudge_x[wide$level == "Other"] <- -.3
+    vec_nudge_y[wide$level == "Other"] <- -.8
+    vec_nudge_x[wide$level == "Black"] <- .5
+    vec_nudge_y[wide$level == "Black"] <- -.5
+    
+  } else {
+    vec_nudge_x <- rep(0, nrow(wide))
+    vec_nudge_y <- rep(0, nrow(wide))
+    
+    if(!viz_mu1){ 
+      vec_nudge_x[wide$level == "Asian"] <- -1
+      vec_nudge_y[wide$level == "Asian"] <- -.5
+      vec_nudge_x[wide$level == "White (ref)"] <- .5
+      vec_nudge_y[wide$level == "White (ref)"] <- 1
+      vec_nudge_x[wide$level == "Mixed"] <- .5
+      vec_nudge_y[wide$level == "Mixed"] <- .8
+      vec_nudge_x[wide$level == "White"] <- -1
+      vec_nudge_y[wide$level == "White"] <- 1
+      vec_nudge_x[wide$level == "Other"] <- .5
+      vec_nudge_y[wide$level == "Other"] <- -1
+      vec_nudge_x[wide$level == "Black"] <- .5
+      vec_nudge_y[wide$level == "Black"] <- -.5
+    } else {
+      vec_nudge_x[wide$level == "Three"] <- -.2
+      vec_nudge_y[wide$level == "Three"] <- -.75
+      vec_nudge_x[wide$level == "Four"] <- -.2
+      vec_nudge_y[wide$level == "Four"] <- .75
+      vec_nudge_x[wide$level == "More than\nFour"] <- .2
+      vec_nudge_y[wide$level == "More than\nFour"] <- -.75
+    }
+  }
+  vec_nudge_x <- vec_nudge_x / 2.5
+  vec_nudge_y <- vec_nudge_y / 2.5
+  
+  ## Plot: one panel per covariate, mean point + horizontal & vertical 95% CrI 
+  ## error bars, with a text label naming the parameter level next to each point.
+  
+  p <- 
+    ggplot(wide) +
+    facet_wrap(~ covariate_label) +
+    geom_rect(
+      data = quadrant_rects_all,
+      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = fill),
+      alpha = 0.12, colour = NA, show.legend = FALSE
+    ) +
+    scale_fill_identity() +
+    coord_cartesian(xlim = exp(c(x_min*.9, x_max*.9)), ylim = exp(c(y_min*.9, y_max*.9))) +
+    geom_errorbar(
+      aes(x = x_est, ymin = y_lo, ymax = y_hi, colour = area_type), width = 0, # colour = "grey40", 
+      lwd = .2) +
+    geom_errorbar(
+      aes(y = y_est, xmin = x_lo, xmax = x_hi, colour = area_type), height = 0, # colour = "grey40", 
+      lwd = .2) +
+    geom_point(aes(x = x_est, y = y_est, colour = area_type), size = 1.5) +
+    ggrepel::geom_text_repel(
+      aes(x = x_est, y = y_est, label = level),
+      size = 3.2,
+      box.padding = 1,
+      point.padding = 0.1,
+      force = 2,
+      max.time = 50,
+      segment.linetype = 2,
+      segment.size = .2,
+      nudge_y = vec_nudge_y,     # shift label start position before repelling
+      nudge_x = vec_nudge_x,     # shift label start position before repelling
+      min.segment.length = 0,     # always draw the connecting line segment
+      max.overlaps = Inf,         # avoid dropping labels that can't fit
+      seed = 2
+    ) +
+    geom_text(
+      data = quadrant_labels,
+      aes(x = x, y = y, label = label, hjust = hjust, vjust = vjust),
+      size = 3, colour = "grey20", lineheight = 0.9, fontface = "italic"
+    ) +
+    scale_colour_manual(
+      values = area_colours, na.value = "black", breaks = c("Urban", "Rural"),
+      name = NULL) +
+    scale_x_log10() + scale_y_log10() + 
+    labs(
+      x = ifelse(viz_mu1, "Number of contacts in low-mean component\n(Ratio of mean contacts)", 
+                 "Proportion of individuals in high-mean component (Odds Ratio)"),
+      y = "Number of contacts in high-mean component\n(Ratio of mean contacts)"
+    ) +
+    theme(
+      legend.position = "right", 
+      legend.justification = "left", 
+      legend.box.spacing = unit(0, "pt"),
+      legend.margin = margin(0,0,0,0),
+      legend.key = element_blank(), 
+      plot.margin = margin(0, 2, 2, 2),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_blank()
+    ) 
+  
+  return(p)
+}
+
