@@ -402,7 +402,13 @@ figure_plot_simulations <- function(y, cols, t, groups, ymax_n_i = NA,
   ## Line of code to ensure the plotting function works if there's only 1 particle
   if(is.matrix(y[[1]])) 
     y <- lapply(y, function(x) return(array(x, dim = c(nrow(x), 1, ncol(x)))))
-  
+
+  y$S <- y$S[,y$new_cases |> colSums() |> rowSums() > 1000,]
+  y$E <- y$E[,y$new_cases |> colSums() |> rowSums() > 1000,]
+  y$I <- y$I[,y$new_cases |> colSums() |> rowSums() > 1000,]
+  y$R <- y$R[,y$new_cases |> colSums() |> rowSums() > 1000,]
+  y$new_cases <- y$new_cases[,y$new_cases |> colSums() |> rowSums() > 1000,]
+    
   ## Number of inhabitants per strata
   n_pop <- (y$S + y$E + y$I + y$R)[,1,1]
   
@@ -526,7 +532,7 @@ figure_plot_total_simulations <- function(
     y, groups_age, groups_eth, groups_transmission, verbose = TRUE,
     cols_ethnicity = c("#002973", "#ffdd00", "#d53880", "black", "#afb2b4"),
     cols_age = c("#1f78b4", "#33a02c", "#e31a1c", "#ff7f00", "#6a3d9a"),
-    cols_transmission = c("#1b9e77", "#d95f02", "#7570b3")){
+    cols_transmission = c("#1b9e77", "#d95f02", "#c2a5cf", "#7b3294")){
   ## Line of code to ensure the plotting function works if there's only 1 particle
   if(is.matrix(y[[1]])) 
     y <- lapply(y, function(x) return(array(x, dim = c(nrow(x), 1, ncol(x)))))
@@ -611,17 +617,23 @@ figure_plot_total_simulations <- function(
       }
   }
   rownames(mat_nb_transmission) <- rownames(mat_prop_transmission) <- names(groups_transmission)
+  mat_nb_age <- mat_nb_age[, which(colSums(mat_nb_transmission) > 1000)]
+  mat_nb_eth <- mat_nb_eth[, which(colSums(mat_nb_transmission) > 1000)]
+  mat_nb_transmission <- mat_nb_transmission[, which(colSums(mat_nb_transmission) > 1000)]
   
   ## Generate boxplots for each group type
-  boxplot(t(mat_nb_age), ylim = c(0, max(mat_nb_age) * 1.2), border = cols_age)
-  boxplot(t(mat_prop_age), ylim = c(0, 1), border = cols_age)
-  boxplot(t(mat_nb_eth), ylim = c(0, max(mat_nb_eth) * 1.2), border = cols_ethnicity)
+  boxplot(t(mat_nb_age), ylim = c(0, max(mat_nb_age) * 1.2), border = cols_age,
+          outline = FALSE)
+  boxplot(t(mat_prop_age), ylim = c(0, 1), border = cols_age, outline = FALSE)
+  boxplot(t(mat_nb_eth), ylim = c(0, max(mat_nb_eth) * 1.2), border = cols_ethnicity,
+          outline = FALSE)
   title(ylab = "Number of cases", outer = FALSE, line = 2, cex.lab = 1.5)
-  boxplot(t(mat_prop_eth), ylim = c(0, 1), border = cols_ethnicity)
+  boxplot(t(mat_prop_eth), ylim = c(0, 1), border = cols_ethnicity, outline = FALSE)
   title(ylab = "Attack rate", outer = FALSE, line = 2, cex.lab = 1.5)
   boxplot(t(mat_nb_transmission), ylim = c(0, max(mat_nb_transmission) * 1.2),
-          border = cols_transmission)
-  boxplot(t(mat_prop_transmission), ylim = c(0, 1), border = cols_transmission)
+          border = cols_transmission, outline = FALSE)
+  boxplot(t(mat_prop_transmission), ylim = c(0, 1), border = cols_transmission,
+          outline = FALSE)
   
   
   ## If verbose is TRUE, print the proportion of individuals infected by ethnic group
