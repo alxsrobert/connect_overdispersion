@@ -743,7 +743,6 @@ clean_list_regression_output <- function(list_regression){
 #'
 #' @return Figure with four quadrants showing the parameter estimates from the regression
 #' models
-#' 
 show_regression_params <- function(model, ov18, viz_mu1, which_cov = NULL, 
                                    label = TRUE){
   # Extract coefficients
@@ -1099,5 +1098,68 @@ show_regression_params <- function(model, ov18, viz_mu1, which_cov = NULL,
     ) 
   
   return(p)
+}
+
+#' Figure showing the proportion of simulated individuals with at least X contacts
+#' 
+#' @param prediction_pop dataframe in which each row corresponds to an 
+#' individual in a synthetic population, and three columns: "ethnicity_rural",
+#' the ethnicity of an individual, "contact" the simulated number of contact of that 
+#' individual, and "type" the type of simulation process that was used to simulate
+#' the number of contacts
+#' @param cols_ethnicity Vector defining the colour for each ethnicity
+#' @param high_cut optional, numeric value, end of the x-axis
+#' 
+#'
+#' @return Figure showing the proportion of simulated individuals with at least X contacts
+dist_simulated_pop <- function(prediction_pop, cols_ethnicity, high_cut = 100){
+  p_ecdf_C <-
+    prediction_pop |>
+    group_by(ethnicity_rural, type) |>
+    arrange(contact) |>
+    # Compute the proportion of individuals with at least X contacts for each value
+    # below high_cut
+    mutate(
+      n = n(),
+      surv_prob = (1 - (row_number() / n)) * 100   # P(contact > x) at each observed x
+    ) |>
+    filter(surv_prob > 0) |>              # drop the exact-zero tail point
+    ## Compute the median, and 95%SI across simulations
+    group_by(ethnicity_rural, type, contact) |>
+    summarise(
+      med = median(surv_prob),
+      low = quantile(surv_prob, 0.025),
+      high = quantile(surv_prob, 0.975)
+    ) |> 
+    ungroup() |> 
+    filter(type != "population") |> 
+    # Remove 0s (log scale) and rename ethnicity_rural
+    mutate(contact = case_when(contact == 0 ~ .5, .default = contact),
+           ethnicity_rural = gsub("_U", ", u", ethnicity_rural)) |>
+    filter(contact >= 1, contact <= high_cut) |> 
+    ## Generate the figure
+    ggplot(aes(x = contact, ymin = low, ymax = high,
+               y = med, fill = ethnicity_rural, alpha = ethnicity_rural)) +
+    geom_line(aes(colour = ethnicity_rural), lwd = 1, alpha = 1) +
+    geom_ribbon() +
+    facet_grid( ~ type, scales = "free") +
+    scale_y_log10() +
+    scale_alpha_manual(values = c(.3, .6, .3, .3, .5)) +
+    scale_color_manual(values = cols_ethnicity) +
+    scale_fill_manual(values = cols_ethnicity) +
+    guides(fill = guide_legend(override.aes = list(alpha = .7)),
+           col = "none") +
+    labs(
+      x = "Number of contacts",
+      y = "Proportion with more than x contacts",
+      colour = "Scenario"
+    ) +
+    theme_bw(base_size = 12) +
+    theme(legend.position = "bottom",
+          legend.title = element_blank(),
+          panel.grid.minor = element_blank())
+  
+  
+  return(p_ecdf_C)
 }
 
