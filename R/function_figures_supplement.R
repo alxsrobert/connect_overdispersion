@@ -839,3 +839,96 @@ generate_figure_looic <- function(compar_model){
   )
 }
 
+# Figure: Parameter estimates regression model
+generate_figure_coefall <- function(model_regression){
+  # Extract parameter estimates in <18
+  p_und18 <- show_regression_params(model_regression, FALSE, FALSE,
+                                    c("p_age_group", "day_week", "p_gender")) + 
+    theme(
+      strip.text = element_text(size = 16),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16))
+  
+  # Extract parameter estimates in >= 18
+  p_ov18 <- show_regression_params(model_regression, TRUE, FALSE,
+                                   c("p_age_group", "day_week", "p_gender",
+                                     "employ_", "hiqual_"), label = FALSE) + 
+    theme(
+      strip.text = element_text(size = 16),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16))
+  
+  # Rename facets
+  levels_ov18 <- c(levels(p_und18@data$covariate_label), 
+                   "Employment status", "Highest qualification")
+  p_ov18@data$covariate_label <- factor(
+    p_ov18@data$covariate_label, levels = levels_ov18
+  )
+  p_ov18@layers$geom_rect$data$covariate_label <- factor(
+    p_ov18@layers$geom_rect$data$covariate_label, levels = levels_ov18
+  )
+  p_ov18@layers$geom_text$data$covariate_label <- factor(
+    p_ov18@layers$geom_text$data$covariate_label, levels = levels_ov18
+  )
+  
+  levels(p_und18@data$covariate_label) <- paste0(
+    levels(p_und18@data$covariate_label), " (Under 18)"
+  )
+  levels(p_und18@layers$geom_rect$data$covariate_label) <- paste0(
+    levels(p_und18@layers$geom_rect$data$covariate_label), " (Under 18)"
+  )
+  levels(p_und18@layers$geom_text$data$covariate_label) <- paste0(
+    levels(p_und18@layers$geom_text$data$covariate_label), " (Under 18)"
+  )
+  
+  levels(p_ov18@data$covariate_label) <- 
+    paste0(levels(p_ov18@data$covariate_label), " (18 and over)")
+  levels(p_ov18@layers$geom_rect$data$covariate_label) <- 
+    paste0(levels(p_ov18@layers$geom_rect$data$covariate_label), " (18 and over)")
+  levels(p_ov18@layers$geom_text$data$covariate_label) <- 
+    paste0(levels(p_ov18@layers$geom_text$data$covariate_label), " (18 and over)")
+  
+  ## Combine figures and save
+  pdf(file = "figures/s_parameter_regression.pdf", useDingbats = TRUE, 
+      width = 12, height = 9)
+  print(
+    (p_und18 + theme(axis.ticks.x = element_blank(), axis.text.x = element_blank())) /
+      p_ov18 + 
+      plot_layout(heights = c(.33, .67), axes = "collect", axis_titles = "collect") &
+      theme(strip.background = element_blank())
+  )
+  dev.off()
+}
+
+# Figure: Parameter estimates regression model household size
+generate_figure_coefhh <- function(model_regression){
+  # Extract parameter estimates in <18
+  p_und18 <- show_regression_params(model_regression, FALSE, TRUE) + 
+    theme(
+      strip.text = element_text(size = 16),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16))
+  # Extract parameter estimates in >= 18
+  p_ov18 <- show_regression_params(model_regression, TRUE, TRUE, label = FALSE) + 
+    theme(
+      strip.text = element_text(size = 16),
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 16))
+  # Rename facets
+  p_und18@data$covariate_label <- 
+    p_und18@layers$geom_rect$data$covariate_label <- 
+    p_und18@layers$geom_text$data$covariate_label <- "Under 18"
+  p_ov18@data$covariate_label <- 
+    p_ov18@layers$geom_rect$data$covariate_label <- 
+    p_ov18@layers$geom_text$data$covariate_label <- "18 and over"
+  
+  ## Combine figures and save
+  pdf(file = "figures/s_parameter_regression_hh.pdf", useDingbats = TRUE, 
+      width = 9, height = 5)
+  print(
+    p_und18 + p_ov18 + plot_layout(axes = "collect", axis_titles = "collect") &
+      theme(strip.background = element_blank())
+  )
+  dev.off()
+}
+
