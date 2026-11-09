@@ -343,16 +343,18 @@ generate_figure4 <- function(y_result, cols_ethnicity){
   )
   dev.off()
 }
-generate_figure5 <- function(df_prop_r0_per_region, cols_region){
+
+generate_figure5 <- function(df_prop_r0_per_region, df_prop_r0_per_region_eth,
+                             cols_region, standardised = FALSE){
   # Initialise figure
   figure5 <- list()
   
   ## Set ggplot theme figure 5
   theme_set(
     theme_bw() +
-      theme(axis.text=element_text(size=16),
+      theme(axis.text=element_text(size=13),
             legend.title=element_blank(),
-            strip.text.x = element_text(size = 14),
+            strip.text = element_text(size = 14),
             axis.title=element_text(size=14,face="bold"), 
             legend.text = element_text(size = 12),
             legend.position = "top",
@@ -363,81 +365,123 @@ generate_figure5 <- function(df_prop_r0_per_region, cols_region){
   )
   
   
+  names(cols_region) <- c("England", "Birmingham", "Leicester", "Liverpool", 
+                              "London", "Manchester", "York")
+  
   ## Panel A: r0 as a function of beta
   figure5[[1]] <- 
     df_prop_r0_per_region |> 
     group_by(type, beta) |> 
     ## Compute 95% SI and median
-    summarise(med = median(r0), low_95 = quantile(r0, 0.025), 
-              hi_95 = quantile(r0, 0.975), .groups = "drop") |> 
+    summarise(med = median(r0), 
+              low_95 = quantile(r0, 0.25), 
+              hi_95 = quantile(r0, 0.75), 
+              .groups = "drop") |> 
+    mutate(beta_jit = beta + rep(seq(-4.5e-4, 4.5e-4, 1.5e-4)[c(4, 2, 3, 1, 5, 6, 7)], each = 6)) |> 
     ggplot(aes(x = beta, y = med, col = type, fill = type, ymin = low_95, ymax = hi_95)) + 
-    geom_point() + geom_line() + geom_ribbon(col = NA, alpha = 0.2) + 
+    geom_point(aes(x = beta_jit)) + geom_line(aes(x = beta_jit), lty = 2) + 
+    geom_ribbon(col = NA, alpha = 0.2) + 
     scale_color_manual(values = cols_region) + scale_fill_manual(values = cols_region) +
     guides(colour = guide_legend(nrow = 2)) + xlab("\u03B2") + ylab(bquote(R[0])) +
-    labs(tag = "A")
+    theme(legend.byrow = TRUE)
   
-  ## Panel B Proportion by city for several values of beta
+  
+  ## Panel B: attack rate by ethnicity and city
   figure5[[2]] <- 
-    df_prop_r0_per_region |> 
-    filter(r0 < 7) |> 
-    ## Compute minimum and maximum value of R0 for each beta
-    group_by(beta) |> 
-    mutate(min_r0 = round(min(r0), 1), max_r0 = round(max(r0), 1)) |> 
-    group_by(type, beta, min_r0, max_r0) |> 
-    ## Compute median and 95% SI of the attack rate
-    summarise(med = median(prop),
-              low_95 = quantile(prop, 0.025),
-              hi_95 = quantile(prop, 0.975), .groups = "drop") |> 
-    mutate(beta = paste0('beta == ', beta, '  (R[0]~"between"~', 
-                         min_r0, '~"and"~', max_r0, ')'),
-           beta = factor(beta), beta = fct_rev(beta),
-           ## Set y range for each value of beta
-           ymin = case_when(grepl(0.052, beta) ~ 0.655,
-                            grepl(0.039, beta) ~ 0.575,
-                            grepl(0.026, beta) ~ 0.445,
-                            grepl(0.013, beta) ~ 0.17),
-           ymax = case_when(grepl(0.052, beta) ~ 0.695,
-                            grepl(0.039, beta) ~ 0.615,
-                            grepl(0.026, beta) ~ 0.485,
-                            grepl(0.013, beta) ~ 0.210),
-    ) |> 
-    ## Generate figure
-    ggplot(aes(x = type, y = med, col = type, ymin = low_95, ymax = hi_95)) + 
-    geom_pointrange(lwd = 1.5) + geom_point() + 
-    scale_color_manual(values = cols_region) +
-    facet_wrap(~beta, scales = "free_y", ncol = 1, labeller = label_parsed) +
-    geom_blank(aes(y = ymin)) + geom_blank(aes(y = ymax)) + 
-    scale_x_discrete(guide = guide_axis(n.dodge = 2)) + xlab("") + ylab("Attack rate") + 
-    theme(strip.text.x = element_text(size = 14, hjust = 0), legend.position = "none", 
-          plot.margin = unit(c(0,0,0,.5), "cm")) +
-    labs(tag = "B")
+    (df_prop_r0_per_region_eth |> 
+       filter(beta == 0.015,
+              n > 120) |> 
+       mutate(
+         type = factor(type, levels = c("Birmingham","Leicester", "London", "Manchester", 
+                                        "Liverpool", "York",  "England")),
+         beta = paste0("\u03B2 == ", beta),
+         prop_plot = if(standardised) proportion_standard else proportion) |> 
+       group_by(beta) |> 
+       mutate(min_r0 = round(min(r0), 1), 
+              max_r0 = round(max(r0), 1),
+              beta = paste0(beta, '~(R[0]~"between"~', 
+                            min_r0, '~"and"~', max_r0, ')')) |> 
+       ggplot(aes(y = type, 
+                  x = prop_plot,
+                  fill = type, col = type)) + 
+       geom_density_ridges(scale = 1, alpha = 0.6, rel_min_height = 0.01) +
+       scale_color_manual(values = cols_region) + 
+       scale_fill_manual(values = cols_region) + 
+       facet_grid(ethnicity ~ beta, scales = "free_y", labeller = label_parsed) + 
+       coord_flip() + scale_y_discrete(guide = guide_axis(n.dodge = 2)) + 
+       ylab("") +
+       xlab(if(standardised) "Attack rate (standardised)" else "Attack rate") +
+       theme(panel.grid = element_blank(),
+             strip.background.y = element_blank(),
+             strip.text.y = element_blank())
+    ) + 
+    (df_prop_r0_per_region_eth |> 
+       filter(beta == 0.03,
+              type %in% c("Birmingham", "England", "Leicester", "Liverpool", 
+                          "London", "Manchester", "York"),
+              n > 100) |> 
+       mutate(
+         type = factor(type, levels = c("Birmingham","Leicester", "London", "Manchester", 
+                                        "Liverpool", "York",  "England")),
+         beta = paste0("\u03B2 == ", beta),
+         prop_plot = if(standardised) proportion_standard else proportion) |> 
+       group_by(beta) |> 
+       mutate(min_r0 = round(min(r0), 1), 
+              max_r0 = round(max(r0), 1),
+              beta = paste0(beta, '~(R[0]~"between"~', 
+                            min_r0, '~"and"~', max_r0, ')')) |> 
+       ggplot(aes(y = type, 
+                  x = prop_plot,
+                  fill = type, col = type)) + 
+       geom_density_ridges(scale = 1, alpha = 0.6, rel_min_height = 0.01) +
+       scale_color_manual(values = cols_region) + 
+       scale_fill_manual(values = cols_region) + 
+       facet_grid(ethnicity ~ beta, scales = "free_y", labeller = label_parsed) + 
+       coord_flip() + scale_y_discrete(guide = guide_axis(n.dodge = 2)) + 
+       ylab("") + 
+       xlab(if(standardised) "Attack rate (standardised)" else "Attack rate") +
+       theme(panel.grid = element_blank())
+    ) + plot_layout(guides = "collect", axis_titles = "collect", axes = "collect") &
+    theme(legend.position = "none")
+  
   
   ## Panel C: proportion change in R0 per beta
   figure5[[3]] <- 
     df_prop_r0_per_region |> 
     ## Divide r0 by the value observed in England
     left_join(df_prop_r0_per_region |> filter(type == "England") |> 
-                rename(ref = r0) |> select(-type, -prop), by = c("beta", "iter")) |> 
+                group_by(beta) |> summarise(ref = median(r0), .groups = "drop"), 
+              by = "beta") |> 
     mutate(percent_change = r0/ref - 1) |> 
     filter(type != "England", !is.na(percent_change)) |> 
     group_by(type) |> 
     summarise(med = median(percent_change),
+              low_50 = quantile(percent_change, 0.25),
+              hi_50 = quantile(percent_change, 0.75),
               low_95 = quantile(percent_change, 0.025),
-              hi_95 = quantile(percent_change, 0.975), .groups = "drop") |> 
-    ggplot(aes(x = type, y = med, col = type, ymin = low_95, ymax = hi_95)) + 
-    geom_pointrange(lwd = 1.5) +
+              hi_95 = quantile(percent_change, 0.975),
+              .groups = "drop") |> 
+    ggplot(aes(x = type, y = med, col = type, ymin = low_50, ymax = hi_50)) + 
+    geom_pointrange(lwd = 2) +
+    geom_pointrange(mapping = aes(ymin = low_95, ymax = hi_95), 
+                    lwd = .5) +
     geom_point() + 
     scale_color_manual(values = cols_region[-1]) +
     geom_hline(yintercept = 0, lty = 2, col = "Black") + 
     scale_x_discrete(guide = guide_axis(n.dodge = 2)) + 
     theme(legend.position = "none") +
-    xlab("") + ylab(expression("Proportion change in R"[0], " across\nall betas compared to England")) +
-    labs(tag = "C")
+    labs(x = "", 
+         y = expression(atop(
+           "Proportion change in " ~ R[0]
+         ))
+    )
   
-  pdf(file = "figures/figure5.pdf", useDingbats = TRUE, width = 12, height = 9)
+  
+  pdf(file = "figures/figure5.pdf", useDingbats = TRUE, width = 15, height = 9)
   print(
     free(figure5[[1]] / figure5[[3]] + plot_layout(heights = c(.67,.33))) + 
-      figure5[[2]] + plot_layout()
+      figure5[[2]] + plot_layout(widths = c(.4, .6))
   )
   dev.off()
+  theme_set(theme_bw())
 }
