@@ -369,17 +369,17 @@ generate_figure_traj <- function(cols_age, cols_ethnicity, cols_contact){
   }
 }
 
-# Figures S18-S20: Population by city
-generate_figureS18S20 <- function(cols_ethnicity){
+# Figures: Population by city
+generate_figure_democity <- function(cols_ethnicity){
   ## Set ggplot theme
   theme_set(
     theme_minimal() +
       theme(legend.title=element_blank(), 
             legend.position = "top",
             legend.key = element_blank(),
-            axis.text=element_text(size=16),
+            axis.text=element_text(size=14),
             strip.text.x = element_text(size = 14),
-            axis.title=element_text(size=14,face="bold"), 
+            axis.title=element_text(size=16,face="bold"), 
             legend.text = element_text(size = 12),
             plot.tag = element_text(face = "bold", size = 20),
             title = element_text(size=16),
@@ -394,7 +394,8 @@ generate_figureS18S20 <- function(cols_ethnicity){
     "Birmingham", "Leicester", "London", "Manchester", "Liverpool", "York")
   figure_i <- list()
   ## Plotting two cities side by side
-  pdf(file = "figures/s18_20_dem_city.pdf", useDingbats = TRUE, width = 12, height = 11)
+  pdf(file = "figures/s_dem_city.pdf", useDingbats = TRUE, 
+      width = 15, height = 12)
   for(i in seq(1, length(regions), 2)){
     region_i <- regions[i]
     region_i2 <- regions[i + 1]
@@ -434,6 +435,22 @@ generate_figureS18S20 <- function(cols_ethnicity){
         )
       )
     
+    # Import hiqual category, clean levels
+    hiqual_eth <- 
+      rbind.data.frame(
+        cbind.data.frame(
+          clean_hiqual(age_group_level, region = region_i),
+          region = region_i
+        ),
+        cbind.data.frame(
+          clean_hiqual(age_group_level, region = region_i2),
+          region = region_i2
+        )
+      )
+    
+    
+    
+
     ## Set 0% for 0-4 age group
     age_eth <- 
       rbind.data.frame(
@@ -499,9 +516,40 @@ generate_figureS18S20 <- function(cols_ethnicity){
       ggplot(aes(y = prop, x = econ, fill = ethnic_group)) +
       scale_fill_manual(values = c(cols_ethnicity)) + 
       geom_col(position = "dodge",width = .6) + facet_grid(~ region, scales = "free") +
-      scale_x_discrete(drop = TRUE) + ylab("Proportion") + xlab("Employment status") +
+      scale_x_discrete(drop = TRUE, guide = guide_axis(n.dodge = 2)) + 
+      ylab("Proportion") + xlab("Employment status") +
       theme(legend.position = "none",
-            axis.text.x = element_text(angle = 90),
+            # axis.text.x = element_text(angle = 90),
+            strip.text.x = element_blank(),
+      )
+    
+    hiqual_per_eth <- 
+      hiqual_eth |> 
+      filter(ethnic_group != "Does not apply") |> 
+      mutate(hiqual = case_when(
+        hiqual == "Apprenti" ~ "Apprenticeship",
+        hiqual == "Level1" ~ "Level 1",
+        hiqual == "Level2" ~ "Level 2", 
+        hiqual == "Level3" ~ "Level 3", 
+        hiqual == "Level4" ~ "Level 4", 
+        hiqual == "Noquali" ~ "No qualification",
+        .default = hiqual
+      )) |> 
+      mutate(hiqual = factor(hiqual, levels = c(
+        "No qualification", "Level 1", "Level 2", "Level 3", "Level 4", "Apprenticeship"
+      ))) |> 
+      group_by(ethnic_group, hiqual, region) |> 
+      summarise(tot = sum(n), .groups = "drop") |> 
+      group_by(ethnic_group, region) |> 
+      mutate(prop = tot / sum(tot),
+             ethnic_group = gsub(",", "", gsub("[ ].*", "", ethnic_group))) |> 
+      ggplot(aes(y = prop, x = hiqual, fill = ethnic_group)) +
+      scale_fill_manual(values = c(cols_ethnicity)) + 
+      geom_col(position = "dodge",width = .6) + facet_grid(~ region, scales = "free") +
+      xlab("Highest qualification") + ylab("Proportion") + guides(fill = "none") + 
+      scale_x_discrete(drop = TRUE, guide = guide_axis(n.dodge = 2)) + 
+      theme(legend.position = "none",
+            # axis.text.x = element_text(angle = 90),
             strip.text.x = element_blank(),
       )
     
@@ -559,7 +607,8 @@ generate_figureS18S20 <- function(cols_ethnicity){
       )
     
     
-    figure_i[[2]] <- hh_size_per_eth / employ_per_eth + plot_layout(axis_titles =  "collect_y")
+    figure_i[[2]] <- 
+      hh_size_per_eth / employ_per_eth / hiqual_per_eth + plot_layout(axis_titles =  "collect_y")
     
     print(figure_i[[1]] / figure_i[[2]] + 
             plot_layout(heights = c(1/4, 3/4)))
