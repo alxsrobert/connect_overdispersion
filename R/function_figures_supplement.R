@@ -159,18 +159,17 @@ generate_figure_distageeth <- function(model_regression){
   theme_set()
 }
 
-# Figure S11: Difference between # of contacts before and after per capita method
-generate_figureS11 <- function(file_regression, which_model_plot){
+# Figure: Difference between # of contacts before and after per capita method
+generate_figure_diffmethods <- function(file_regression){
   each_sim <- 500
   level_age <- c("0-4", "5-9", "10-14", "15-17", "18-24", "25-29", "30-39", "40-49",
                  "50-59", "60-69", "70+")
   level_ethnic <- c("Asian", "Black", "Mixed", "Other", "White")
-  level_transmitter <- c("Low transmitter", "Medium transmitter", "High transmitter")
+  level_transmitter <- c("Low transmitter", "Medium transmitter", "High transmitter", "Highest transmitter")
   ## Number of contacts before per capita method (i.e. mixture distribution)
   transmission_groups <- create_contact_group(
-    scenario_contact_group = "reference", n_group = 3, n_draws = 5, region = "England", 
-    each = each_sim, file_in = file_regression, which_model = which_model_plot, 
-    vec_ethnicity_rural = paste0(level_ethnic, "_Urban"))
+    scenario_contact_group = "reference", n_group = 4, n_draws = 5, region = "England", 
+    each = each_sim, file_in = file_regression, vec_ethnicity_rural = paste0(level_ethnic, "_Urban"))
   contact_from_mixture <- transmission_groups$coef
   ## Number of contacts in per capita matrix
   contact_from_per_cap <- 
@@ -187,10 +186,11 @@ generate_figureS11 <- function(file_regression, which_model_plot){
                  transmitter = gsub(".*group", "", names(contact_from_per_cap)),
                  model = as.numeric(contact_from_per_cap)),
       data.frame(ethnic = as.character(rep(seq(5), each = 11)),
-                 age = as.character(rep(seq(11), 5*3)),
-                 transmitter = as.character(rep(seq(3), each = 11*5)),
+                 age = as.character(rep(seq(11), 5*4)),
+                 transmitter = as.character(rep(seq(4), each = 11*5)),
                  group = c(contact_from_mixture[,1], contact_from_mixture[,2], 
-                           contact_from_mixture[,3])),
+                           contact_from_mixture[,3], 
+                           contact_from_mixture[,4])),
       by = c("ethnic", "age", "transmitter")
     ) |> 
     ## Convert ethnicity, age, and contact group to factors
@@ -206,16 +206,17 @@ generate_figureS11 <- function(file_regression, which_model_plot){
       type == "group" ~ "Generated from mixture distributions"
     ))
   
-  pdf(file = "figures/s11_comparison_ncontacts.pdf", useDingbats = TRUE, 
-      width = 8, height = 9)
+  pdf(file = "figures/s_comparison_ncontacts.pdf", useDingbats = TRUE, 
+      width = 12, height = 9)
   ## Generate figure
   print(
     dt_contact |> 
       ggplot(aes(x = age, y = n_contacts, colour = type, shape = transmitter, 
                  group = type)) +
       geom_point(position = position_dodge(width = 0.5)) + facet_wrap(ethnic ~ ., ncol = 1) + 
+      scale_y_log10() + coord_cartesian(ylim = c(1, 200)) +
       xlab("Age group") + ylab("Mean number of contacts") + theme_bw() + 
-      guides(col = guide_legend(nrow = 2), shape = guide_legend(nrow = 3)) +
+      guides(col = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) +
       theme(axis.text.x = element_text(angle = 30, hjust = 0.5, vjust = 0.5),
             legend.title=element_blank(), axis.text=element_text(size=16),
             strip.text = element_text(hjust = 0,face="bold", size = 18),
