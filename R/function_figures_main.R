@@ -131,6 +131,7 @@ generate_figure2 <- function(model_regression, contact_dist, cols_ethnicity){
   print(figure2)
   dev.off()
 }
+
 generate_figure3 <- function(y_result, cols_ethnicity){
   # Initialise figure
   figure3 <- list()
@@ -140,11 +141,13 @@ generate_figure3 <- function(y_result, cols_ethnicity){
     y_result |> 
     filter(!grepl("0.035", type), ## Remove beta runs,
            paste0(type, r0, iter) %in% ## Filter out outbreaks that immediately died out
-             (y_result |> filter(!grepl("0.035", type)) |>  ## Remove beta runs
+             (y_result |> 
+                filter(!grepl("0.035", type)) |>  ## Remove beta runs
                 group_by(type, r0, iter) |> 
-                summarise(n_tot = sum(n), .groups = "drop") |> 
-                mutate(id = paste0(type, r0, iter)) |> 
-                filter(n_tot > 500) |> 
+                summarise(n_tot = sum(n), pop_tot = sum(n / proportion),
+                          .groups = "drop") |> 
+                mutate(prop_tot = n_tot / pop_tot, id = paste0(type, r0, iter)) |> 
+                filter(prop_tot > 0.02) |> 
                 pull(id)),
            type %in% c("England", "samecoef", "samepop","samepopsamemix") ## select scenarios of interest
     ) |> ## Rename scenarios
@@ -157,12 +160,22 @@ generate_figure3 <- function(y_result, cols_ethnicity){
         "Homogeneous mixing \nacross ethnicities &\nSame demographic variables",
       type == "England" ~ "Representative of\nEngland census",
       .default = type
-    ), levels = c("Representative of\nEngland census", 
-                  "Ethnicity-related regression\ncoefficients set to 1",
-                  "Homogeneous mixing\nbetween ethnicities",
+    ), levels = c("Homogeneous mixing \nacross ethnicities &\nSame demographic variables",
                   "Same distribution of\ndemographic variables\nacross ethnicities",
-                  "Homogeneous mixing \nacross ethnicities &\nSame demographic variables"
+                  "Ethnicity-related regression\ncoefficients set to 1",
+                  "Representative of\nEngland census", 
+                  "Homogeneous mixing\nbetween ethnicities"
     )))
+  
+  y_figure3 <- rbind.data.frame(
+    y_figure3,
+    y_figure3 |> 
+      mutate(pop = n / proportion) |> 
+      group_by(type, iter, r0, scenario) |> 
+      summarise(pop = sum(pop), n = sum(n), proportion = n / pop, 
+                proportion_standard = n /pop, ethnicity = "All", .groups = "drop_last") |> 
+      select(colnames(y_figure3))
+  )
   
   ## Generate attack rate and relative attack rate
   figure3[[1]] <-
@@ -174,20 +187,32 @@ generate_figure3 <- function(y_result, cols_ethnicity){
         filter(ethnicity == "White") |> mutate(prop_ref = proportion) |> 
         select(r0, scenario, iter, prop_ref), by = c("iter", "r0", "scenario")
     ) |> 
-    mutate(relative_ratio = proportion / prop_ref) |> 
+    filter(ethnicity != "White") |> 
+    mutate(relative_ratio = case_when(
+      ethnicity %in% c("All") ~ NA, 
+      .default = proportion / prop_ref)) |> 
+    mutate(proportion = case_when(
+      ethnicity != "All" ~ NA, 
+      .default = proportion)) |> 
     ## Compute median and 95% Simulation intervals attack rates
     group_by(ethnicity, r0, scenario) |> 
     summarise(median_relative_ratio = median(relative_ratio),
-              low_relative_ratio = quantile(relative_ratio, 0.025),
-              high_relative_ratio = quantile(relative_ratio, 0.975),
+              low_relative_ratio = quantile(relative_ratio, 0.025, na.rm = TRUE),
+              midlow_relative_ratio = quantile(relative_ratio, 0.25, na.rm = TRUE),
+              midhigh_relative_ratio = quantile(relative_ratio, 0.75, na.rm = TRUE),
+              high_relative_ratio = quantile(relative_ratio, 0.975, na.rm = TRUE),
               median_proportion = median(proportion),
-              low_proportion = quantile(proportion, 0.25),
-              high_proportion = quantile(proportion, 0.75), 
+              low_proportion = quantile(proportion, 0.025, na.rm = TRUE),
+              midlow_proportion = quantile(proportion, 0.25, na.rm = TRUE),
+              midhigh_proportion = quantile(proportion, 0.75, na.rm = TRUE),
+              high_proportion = quantile(proportion, 0.975, na.rm = TRUE),
               .groups = "drop"
     ) |> 
     ## Create median, low and high columns
     pivot_longer(cols = c(median_relative_ratio, low_relative_ratio, high_relative_ratio, 
-                          median_proportion, low_proportion, high_proportion),
+                          midlow_relative_ratio, midhigh_relative_ratio,
+                          median_proportion, low_proportion, high_proportion,
+                          midlow_proportion, midhigh_proportion),
                  names_to = c(".value", "plot"), names_pattern = "([a-z]+)_(.*)") |> 
     ## Rename plots as attack rate and relative attack rate
     mutate(plot = case_when(plot == "proportion" ~ "Attack rate",
@@ -195,51 +220,32 @@ generate_figure3 <- function(y_result, cols_ethnicity){
     ## Generate plot
     ggplot() + 
     geom_ribbon(aes(fill = ethnicity, x = r0, ymin = low, ymax = high, alpha = ethnicity)) + 
-    scale_alpha_manual(values = c(.7, .5, .3, .5, 1)) +
-    geom_line(aes(col = ethnicity, x = r0, y = median)) + 
+    scale_alpha_manual(values = c(.4, .4, .5, .3, .3)) +
+    geom_ribbon(aes(fill = ethnicity, x = r0, ymin = midlow, ymax = midhigh, alpha = ethnicity)) + 
+    geom_line(aes(col = ethnicity, x = r0, y = median), lwd = 0.8) +
     scale_fill_manual(values = cols_ethnicity) + scale_color_manual(values = cols_ethnicity) + 
     geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
-    facet_grid(plot ~ scenario, scales = "free", switch = "y") + xlab(bquote(R[0])) + 
-    labs(tag = "A") + theme_bw() +
-    theme(axis.text = element_text(size=16), strip.text = element_text(size = 14),
-          strip.placement = "outside", strip.background.y = element_blank(),
-          axis.title.y = element_blank(), axis.title.x = element_text(size=14,face="bold"),
-          legend.text = element_text(size = 12), legend.title = element_blank(),
-          strip.background = element_blank(), legend.position = "bottom",
+    facet_grid(plot ~ scenario, scales = "free", switch = "y") + 
+    theme_bw() + xlab(bquote(R[0])) + 
+    theme(axis.text = element_text(size=16), 
+          strip.text.x = element_blank(),
+          strip.text.y = element_text(size = 14), 
+          strip.placement = "outside", 
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(size=14,face="bold"),
+          legend.text = element_text(size = 12), 
+          legend.title = element_blank(),
+          strip.background = element_blank(), 
+          legend.position = "bottom",
           plot.tag = element_text(face = "bold", size = 20), 
+          panel.grid.minor = element_blank(), 
           plot.tag.position = c(0,1))
-  
-  ## Figure comparing the total population infected in scenarios with beta and R0
-  figure3[[2]] <- 
-    y_figure3 |> 
-    filter(r0 == 4 | r0 < 0.04) |> 
-    mutate(
-      tot = n / proportion, ## Compute the total number of individuals per ethnicity
-      which = case_when(r0 == 4 ~ paste0("R0 = ", r0), 
-                        r0 < 0.04 ~ paste0("\u03B2 = ", r0)),
-      ylab = "Attack rate"
-    ) |> 
-    ## Compute the total proportion of the population infected
-    group_by(iter, which, scenario, ylab) |> 
-    summarise(tot_cases = sum(n) / sum(tot), .groups = "drop") |> 
-    group_by(which, scenario, ylab) |>
-    ## Generate the figure
-    ggplot(aes(x = tot_cases, y = scenario, fill = which)) + 
-    geom_density_ridges(scale = .5, alpha = 0.7, col = NA) +
-    scale_fill_manual(values = c("lightblue", "#FF7276"),
-                      labels = c(expression("R"[0] == 4), expression("\u03B2 = 0.0335"))) +
-    facet_grid(ylab ~ ., scales = "free", switch = "y") + 
-    theme_minimal() + coord_flip() + xlab("") + ylab("") + labs(tag = "B") +
-    theme(axis.text=element_text(size=14), strip.text = element_text(size = 14),
-          strip.placement = "outside", axis.title=element_blank(), 
-          legend.text = element_text(size = 12), legend.title=element_blank(), 
-          legend.position = "top", plot.tag = element_text(face = "bold", size = 20), 
-          plot.tag.position = c(0,1))
-  
-  pdf(file = "figures/figure3.pdf", useDingbats = TRUE, width = 12, height = 9)
-  print(figure3[[1]] / (figure3[[2]]) + plot_layout(heights = c(.62, .38)))
+
+  pdf(file = "figures/figure3.pdf", useDingbats = TRUE, width = 12, height = 6)
+  print(figure3[[1]])
   dev.off()
 }
+
 generate_figure4 <- function(y_result, cols_ethnicity){
   # Initialise figure
   figure4 <- list()
