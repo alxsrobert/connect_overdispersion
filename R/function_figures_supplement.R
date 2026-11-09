@@ -932,3 +932,184 @@ generate_figure_coefhh <- function(model_regression){
   dev.off()
 }
 
+# Table: parameter estimates regression model
+generate_table_param <- function(model_regression){
+  dt_pars_bel18 <- 
+    cbind.data.frame(pars = model_regression$bel18 |> fixef() |> rownames(),
+                     model_regression$bel18 |> fixef())
+  dt_pars_ov18 <- 
+    cbind.data.frame(pars = model_regression$ov18 |> fixef() |> rownames(),
+                     model_regression$ov18 |> fixef())
+  
+  rownames(dt_pars_bel18) <- rownames(dt_pars_ov18) <- NULL
+  colnames(dt_pars_bel18) <- colnames(dt_pars_ov18) <- 
+    c("pars", "mean", "se", "low", "high")
+  
+  res_bel18 <- rbind.data.frame(
+    cbind.data.frame(
+      covariate = c("Household size", "Age group", "Gender", "Day of the week",
+                    "Ethnicity / Urban-rural"),
+      level = c("Two", "0-4", "Female", "Weekday", "White, Urban"),
+      `Low-mean component\n(Ratio of mean contacts)` = 
+        c("1 (Reference level)", "/", "/", "/", "/"),
+      `High-mean component\n(Ratio of mean contacts)` = "1 (Reference level)",
+      `Proportion in high-mean component\n(Odds Ratio)` = 
+        c("/", "1 (Reference level)", "1 (Reference level)", "1 (Reference level)", 
+          "1 (Reference level)")
+    ),
+    dt_pars_bel18 |> 
+      select(-se) |> 
+      mutate(
+        cat = gsub("[_].*", "", pars),
+        mean = case_when(
+          cat == "theta2" & grepl("Intercept", pars) ~ round(plogis(mean), 2),
+          .default = round(exp(mean), 2)
+        ),
+        low = case_when(
+          cat == "theta2" & grepl("Intercept", pars) ~ round(plogis(low), 2),
+          .default = round(exp(low), 2)
+        ),
+        high = case_when(
+          cat == "theta2" & grepl("Intercept", pars) ~ round(plogis(high), 2),
+          .default = round(exp(high), 2)
+        ),
+        cat = case_when(
+          cat == "mu1" ~ "Low-mean component\n(Ratio of mean contacts)",
+          cat == "mu2" ~ "High-mean component\n(Ratio of mean contacts)",
+          cat == "theta2" ~ "Proportion in high-mean component\n(Odds Ratio)"),
+        covariate = case_when(
+          grepl("Intercept", pars) ~ "Intercept",
+          grepl("cat_household", pars) ~ "Household size",
+          grepl("p_age_group", pars) ~ "Age group",
+          grepl("gender", pars) ~ "Gender",
+          grepl("day_week", pars) ~ "Day of the week",
+          grepl("ethnicity_rural", pars) ~ "Ethnicity / Urban-rural"
+        ), 
+        level = case_when(
+          grepl("Intercept", pars) ~ "Intercept",
+          grepl("membersThree", pars) ~ "Three",
+          grepl("membersFour", pars) ~ "Four",
+          grepl("membersMore", pars) ~ "More than Four",
+          grepl("5M9", pars) ~ "5-9",
+          grepl("10M14", pars) ~ "10-14",
+          grepl("15M17", pars) ~ "15-17",
+          grepl("genderMale", pars) ~ "Male",
+          grepl("genderOther", pars) ~ "Other",
+          grepl("weekend", pars) ~ "Weekend",
+          grepl("Asian_Urban", pars) ~ "Asian, Urban",
+          grepl("Black_Urban", pars) ~ "Black, Urban",
+          grepl("Mixed_Urban", pars) ~ "Mixed, Urban",
+          grepl("Other_Urban", pars) ~ "Other, Urban",
+          grepl("NonWhite_Rural", pars) ~ "NonWhite, Rural",
+          grepl("White_Rural", pars) ~ "White, Rural"
+        )
+      ) |> 
+      select(-pars) |> 
+      mutate(estimate = paste0(mean, " [", low, " - ", high, "]")) |> 
+      select(cat, covariate, level, estimate) |> 
+      pivot_wider(names_from = cat, values_from = estimate, values_fill = "/")
+  ) |> 
+    mutate(covariate = factor(covariate, levels = c(
+      "Intercept", "Household size", "Ethnicity / Urban-rural", "Age group", 
+      "Day of the week", "Gender"
+    ))) |> 
+    arrange(covariate)
+  
+  res_ov18 <-
+    rbind.data.frame(
+      cbind.data.frame(
+        covariate = c("Household size", "Age group", "Gender", "Day of the week",
+                      "Ethnicity / Urban-rural", "Employment status", "Highest qualification"),
+        level = c("One", "18-24", "Female", "Weekday", "White, Urban", "Employed", "Level 1"),
+        `Low-mean component\n(Ratio of mean contacts)` = 
+          c("1 (Reference level)", "/", "/", "/", "/", "/", "/"),
+        `High-mean component\n(Ratio of mean contacts)` = "1 (Reference level)",
+        `Proportion in high-mean component\n(Odds Ratio)` = 
+          c("/", "1 (Reference level)", "1 (Reference level)", "1 (Reference level)", 
+            "1 (Reference level)", "1 (Reference level)", "1 (Reference level)")
+      ),
+      dt_pars_ov18 |> 
+        select(-se) |> 
+        mutate(
+          cat = gsub("[_].*", "", pars),
+          mean = case_when(
+            cat == "theta2" & grepl("Intercept", pars) ~ round(plogis(mean), 2),
+            .default = round(exp(mean), 2)
+          ),
+          low = case_when(
+            cat == "theta2" & grepl("Intercept", pars) ~ round(plogis(low), 2),
+            .default = round(exp(low), 2)
+          ),
+          high = case_when(
+            cat == "theta2" & grepl("Intercept", pars) ~ round(plogis(high), 2),
+            .default = round(exp(high), 2)
+          ),
+          cat = case_when(
+            cat == "mu1" ~ "Low-mean component\n(Ratio of mean contacts)",
+            cat == "mu2" ~ "High-mean component\n(Ratio of mean contacts)",
+            cat == "theta2" ~ "Proportion in high-mean component\n(Odds Ratio)"),
+          covariate = case_when(
+            grepl("Intercept", pars) ~ "Intercept",
+            grepl("cat_household", pars) ~ "Household size",
+            grepl("p_age_group", pars) ~ "Age group",
+            grepl("gender", pars) ~ "Gender",
+            grepl("day_week", pars) ~ "Day of the week",
+            grepl("ethnicity_rural", pars) ~ "Ethnicity / Urban-rural",
+            grepl("employ", pars) ~ "Employment status",
+            grepl("hiqual", pars) ~ "Highest qualification"
+          ), 
+          level = case_when(
+            grepl("Intercept", pars) ~ "Intercept",
+            grepl("membersTwo", pars) ~ "Two",
+            grepl("membersThree", pars) ~ "Three",
+            grepl("membersFour", pars) ~ "Four",
+            grepl("membersMore", pars) ~ "More than Four",
+            grepl("25M29", pars) ~ "25-29",
+            grepl("30M39", pars) ~ "30-39",
+            grepl("40M49", pars) ~ "40-49",
+            grepl("50M59", pars) ~ "50-59",
+            grepl("60M69", pars) ~ "60-69",
+            grepl("70M93", pars) ~ "70+",
+            grepl("genderMale", pars) ~ "Male",
+            grepl("genderOther", pars) ~ "Other",
+            grepl("weekend", pars) ~ "Weekend",
+            grepl("Asian_Urban", pars) ~ "Asian, Urban",
+            grepl("Black_Urban", pars) ~ "Black, Urban",
+            grepl("Mixed_Urban", pars) ~ "Mixed, Urban",
+            grepl("Other_Urban", pars) ~ "Other, Urban",
+            grepl("NonWhite_Rural", pars) ~ "NonWhite, Rural",
+            grepl("White_Rural", pars) ~ "White, Rural",
+            grepl("employ_Looking", pars) ~ "Looking after home or family",
+            grepl("employ_Retired", pars) ~ "Retired",
+            grepl("employ_unemployed", pars) ~ "Unemployed",
+            grepl("employ_Student", pars) ~ "Student",
+            grepl("employ_Long_terms", pars) ~ "Long-term sick or disabled",
+            grepl("employ_Other", pars) ~ "Other",
+            grepl("hiqual_Level2", pars) ~ "Level 2",
+            grepl("hiqual_Level3", pars) ~ "Level 3",
+            grepl("hiqual_Level4", pars) ~ "Level 4",
+            grepl("hiqual_Noquali", pars) ~ "No qualification",
+            grepl("hiqual_Apprenti", pars) ~ "Apprenticeship"
+          )
+        ) |> 
+        select(-pars) |> 
+        mutate(estimate = paste0(mean, " [", low, " - ", high, "]")) |> 
+        select(cat, covariate, level, estimate) |> 
+        pivot_wider(names_from = cat, values_from = estimate, values_fill = "/")
+    ) |> 
+    mutate(covariate = factor(covariate, levels = c(
+      "Intercept", "Household size", "Ethnicity / Urban-rural", "Age group", 
+      "Day of the week", "Gender", "Employment status", "Highest qualification"
+    ))) |> 
+    arrange(covariate)
+  
+  posterior_summary(model_regression$bel18, variable = c("shape1", "shape2")) |> 
+    round(2)
+  posterior_summary(model_regression$ov18,  variable = c("shape1", "shape2")) |> 
+    round(2)
+  
+  
+  export(as_tibble(res_bel18), "figures/supp_table_bel18.csv")
+  export(as_tibble(res_ov18), "figures/supp_table_ov18.csv")
+}
+
