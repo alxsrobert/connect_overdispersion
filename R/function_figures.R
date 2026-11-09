@@ -237,6 +237,7 @@ figure_forest_plot <- function(list_regression, which_model){
       y = NULL,
       title = ""
     ) +
+    xlim(.5, 2)+
     theme_minimal() +
     guides(col = "none") + 
     theme(
@@ -263,12 +264,6 @@ figure_forest_plot <- function(list_regression, which_model){
 #' @param cols Vector defining the colour for each ethnicity
 #' 
 figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks, cols){
-  # Check if the population size is the same in each type, otherwise generate an
-  # error
-  if(!(table(paste0(prediction_populations$ethnicity_rural, 
-                    prediction_populations$type)) |> unique() |> length()) == 1)
-    stop("All type should have the same number of individuals per ethnicity")
-  
   if(!any(colnames(prediction_populations) == "iter")) 
     prediction_populations$iter <- 1
   
@@ -284,10 +279,11 @@ figure_nb_contact_hist <- function(prediction_populations, breaks, label_breaks,
     # Shift type to a factor
     mutate(type = factor(type, label_predictions)) |>
     # Cut contact into categories (defined by breaks and label_break)
-    mutate(group_contact = cut(
-      contact, breaks = breaks, labels = label_breaks)) |>
+    mutate(group_contact = cut(contact, breaks = breaks, labels = label_breaks),
+           ethnicity_rural = gsub("_U.*", "", ethnicity_rural),
+           ) |>
     group_by(ethnicity_rural, type, iter, group_contact) |> 
-    summarise(prop = n() / pop_size_i, .groups = "drop") |> 
+    summarise(prop = n() / pop_size_i * 100, .groups = "drop") |> 
     group_by(ethnicity_rural, type, group_contact) |> 
     summarise(med = median(prop),
               hi = quantile(prop, prob = .975), 
