@@ -263,9 +263,12 @@ generate_figure4 <- function(y_result, cols_ethnicity){
     y_result_region |> 
     filter(
       paste0(type, r0, iter) %in% 
-        (y_result |> group_by(type, r0, iter) |> summarise(n_tot = sum(n), .groups = "drop") |> 
-           mutate(id = paste0(type, r0, iter)) |> filter(n_tot > 500) |> pull(id)))
-  
+        (y_result |> group_by(type, r0, iter) |> 
+           summarise(n_tot = sum(n), pop_tot = sum(n / proportion),
+                     .groups = "drop") |> 
+           mutate(prop_tot = n_tot / pop_tot, id = paste0(type, r0, iter)) |> 
+           filter(prop_tot > 0.02) |> pull(id)))
+
   for(i in seq_along(regions)){
     region_i <- regions[i]
     y_plot_i <- y_result_region |> filter(type == region_i)
@@ -286,40 +289,51 @@ generate_figure4 <- function(y_result, cols_ethnicity){
       coord_polar("y", start=0) + theme_void() + theme(legend.position = "none")
     grob_i <- ggplotGrob(p_piepop_i)
     
+    thresh_low <- 0.025
+    thresh_high <- 0.975
+    
     ## Compute and plot the relative attack rate
     p_relative_ar_i <- y_plot_i |> 
       left_join(
         y_plot_i |> filter(ethnicity == "White") |> mutate(prop_ref = proportion) |> 
           select(r0, scenario, iter, prop_ref), by = c("iter", "r0", "scenario")
       ) |> 
-      mutate(relative_ratio = proportion / prop_ref) |> 
+      mutate(relative_ratio = case_when(
+        ethnicity == "White" ~ NA, 
+        .default = proportion / prop_ref)) |> 
+      ## Compute median and 95% Simulation intervals attack rates
       group_by(ethnicity, r0, scenario) |> 
       summarise(median = median(relative_ratio),
-                low_95 = quantile(relative_ratio, 0.025),
-                high_95 = quantile(relative_ratio, 0.975), 
+                mid_low = quantile(relative_ratio, 0.25, na.rm = TRUE),
+                mid_high = quantile(relative_ratio, 0.75, na.rm = TRUE),
+                low = quantile(relative_ratio, thresh_low, na.rm = TRUE),
+                high = quantile(relative_ratio, thresh_high, na.rm = TRUE),
                 .groups = "drop"
       ) |> 
-      ggplot(aes(fill = ethnicity, x = r0, ymin = low_95, ymax = high_95)) + 
-      geom_ribbon(aes(alpha = ethnicity)) + 
-      scale_alpha_manual(values = c(.7, .5, .3, .5, 1)) +
-      geom_line(aes(col = ethnicity, x = r0, y = median)) + 
+      ggplot(aes(fill = ethnicity, x = r0, ymin = low, ymax = high)) + 
+      geom_ribbon(aes(alpha = ethnicity, ymin = mid_low, ymax = mid_high)) +
+      geom_ribbon(aes(alpha = ethnicity)) +
+      scale_alpha_manual(values = c(.4, .6, .3, .4, .2)) +
+      geom_line(aes(col = ethnicity, x = r0, y = median), lwd = 0.5) +
       geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
       scale_fill_manual(values = cols_ethnicity) + 
       scale_color_manual(values = cols_ethnicity) + 
       facet_wrap(.~scenario) + xlab(bquote(R[0])) + 
       guides(fill = guide_legend(override.aes = list(alpha = .7)),
              col = "none") + 
-      ylab("Relative attack rate\n") + theme_bw() + ylim(0.8, 2.1) + 
+      ylab("Relative attack rate\n") + theme_bw() + 
+      ylim(0.7, 2.1) +
       theme(axis.text=element_text(size=16),
             strip.text.x = element_text(size = 14),
             axis.title=element_text(size=14,face="bold"), 
             legend.text = element_text(size = 12),
             legend.title=element_blank(), 
-            strip.background = element_blank())
+            strip.background = element_blank(), panel.grid.minor = element_blank())
     ## Add this panel to figure4
     figure4[[i]] <- 
       p_relative_ar_i +
-      annotation_custom(grob = grob_i, xmin = 5, xmax = 8, ymin = 1.3, ymax = 2)
+      annotation_custom(grob = grob_i, xmin = 5, xmax = 8, 
+                        ymin = 1.5, ymax = 2.1)
   }
   
   pdf(file = "figures/figure4.pdf", useDingbats = TRUE, width = 11, height = 7)
