@@ -1113,3 +1113,188 @@ generate_table_param <- function(model_regression){
   export(as_tibble(res_ov18), "figures/supp_table_ov18.csv")
 }
 
+# Figure: Posterior Predictive Checks
+generate_figure_ppc <- function(all_model_sim, final_model_sim, anonymised) {
+  # Import contact data
+  part_reg <- import_and_clean(anonymised)
+  ## Extract models
+  mixnb_bel18 <- final_model_sim$bel18
+  mixnb_ov18 <- final_model_sim$ov18
+  ## Extract negative binomial models
+  nb_bel18 <- all_model_sim$bel18[[2]]
+  nb_ov18 <- all_model_sim$ov18[[7]]
+  
+  ## Posterior draws for each model 
+  draws_mixnb_bel18 <- pp_check(mixnb_bel18, type = "scatter", ndraws = 50)
+  draws_mixnb_ov18 <- pp_check(mixnb_ov18, type = "scatter", ndraws = 50)
+  draws_nb_bel18 <- pp_check(nb_bel18, type = "scatter", ndraws = 50)
+  draws_nb_ov18 <- pp_check(nb_ov18, type = "scatter", ndraws = 50)
+  
+  ## Extract and combine all draws in the same dataset
+  draws_comp <- rbind.data.frame(
+    draws_mixnb_bel18@data |> 
+      mutate(type = "Mixture, best model") |> 
+      left_join(
+        part_reg |> 
+          filter(age_below18 == 1, cat_household_members != "Alone") |> 
+          mutate(id_indiv = 
+                   seq_len(nrow(draws_mixnb_bel18@data |> filter(rep_id == 1)))) |> 
+          select(id_indiv, p_age_group, ethnicity_rural, subethnicity_rural, age_below18), 
+        join_by(y_id == id_indiv)),
+    draws_mixnb_ov18@data |> 
+      mutate(type = "Mixture, best model") |> 
+      left_join(
+        part_reg |> 
+          filter(age_below18 == 0) |> 
+          mutate(id_indiv = 
+                   seq_len(nrow(draws_mixnb_ov18@data |> filter(rep_id == 1)))) |> 
+          select(id_indiv, p_age_group, ethnicity_rural, subethnicity_rural, age_below18), 
+        join_by(y_id == id_indiv)),
+    draws_nb_bel18@data |> 
+      mutate(type = "Negative binomial") |> 
+      left_join(
+        part_reg |> 
+          filter(age_below18 == 1, cat_household_members != "Alone") |> 
+          mutate(id_indiv = 
+                   seq_len(nrow(draws_mixnb_bel18@data |> filter(rep_id == 1)))) |> 
+          select(id_indiv, p_age_group, ethnicity_rural, subethnicity_rural, age_below18), 
+        join_by(y_id == id_indiv)),
+    draws_nb_ov18@data |> 
+      mutate(type = "Negative binomial") |> 
+      left_join(
+        part_reg |> 
+          filter(age_below18 == 0) |> 
+          mutate(id_indiv = 
+                   seq_len(nrow(draws_mixnb_ov18@data |> filter(rep_id == 1)))) |> 
+          select(id_indiv, p_age_group, ethnicity_rural, subethnicity_rural, age_below18), 
+        join_by(y_id == id_indiv))
+  ) |> 
+    mutate(p_age_group = factor(
+      p_age_group, levels = c("0-4", "5-9", "10-14", "15-17", "18-24", "25-29",
+                              "30-39", "40-49", "50-59", "60-69", "70-93")))
+  
+  
+  ## Comparing fits 
+  # Group contact numbers in categories
+  group_contact <- c(-1, 0, 2, 5, 10, 25, 50, 100, Inf)
+  labels_contact <- c("0", "1-2", "3-5", "6-10", "11-25", "26-50", "51-100", "100+")
+  
+  dt_model <- draws_comp |> 
+    pivot_longer(
+      cols = c(y_obs, value), names_to = "model", values_to = "x") |> 
+    mutate(
+      x = cut(x, breaks = group_contact, labels = labels_contact)
+    )
+  ## Histograms comparing the distribution in the model and in the data
+  p_dist <- rbind.data.frame(
+    dt_model |>
+      mutate(group = p_age_group) |> 
+      group_by(type, group, rep_id, model, x) |> 
+      summarise(count = n(), .groups = "drop_last"),
+    dt_model |> 
+      mutate(ethnicity_rural = gsub("_", ", ", ethnicity_rural),
+             group = ethnicity_rural) |> 
+      group_by(type, group, rep_id, model, x) |> 
+      summarise(count = n(), .groups = "drop_last")
+  ) |> 
+    pivot_wider(id_cols = c(type, group, rep_id, x), names_from = "model", 
+                values_from = "count") |> 
+    mutate(value = case_when(is.na(value) ~ 0, .default = value),
+           y_obs = case_when(is.na(y_obs) ~ 0, .default = y_obs)) |> 
+    group_by(type, group, x, y_obs) |> 
+    summarise(m = median(value), l = quantile(value, 0.025), 
+              h = quantile(value, 0.975), .groups = "drop_last") |> 
+    mutate(y_obs = case_when(type == "Mixture, best model" ~ 0, .default = y_obs)) |> 
+    ggplot(aes(x = x, ymin = l, ymax = h, y = m, col = type)) + 
+    geom_pointrange(position = position_dodge(width = 1)) +
+    geom_col(aes(y = y_obs), alpha = .3, col = NULL, width = 1) + 
+    theme_minimal() + 
+    theme(legend.position = "bottom", 
+          legend.title = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_text(size = 18),
+          strip.text = element_text(size = 18),
+          axis.text = element_text(size = 14),
+          legend.text = element_text(size = 18)) + 
+    facet_wrap(~group, scales = "free_y", ncol = 3) + 
+    ylab("Number of participants") + xlab("Contacts")
+  
+  # Comparison on average number of contacts
+  p_mean <- rbind.data.frame(
+    draws_comp |> 
+      mutate(age_below18 = case_when(
+        age_below18 == "1" ~ "Below 18",
+        age_below18 == "0" ~ "18 and above"
+      ), age_below18 = factor(age_below18, levels = c("Below 18", "18 and above")),
+      group = factor(paste0("All: ", age_below18))) |> 
+      pivot_longer(cols = c(y_obs, value), names_to = "model", values_to = "x") |>
+      group_by(type, group, rep_id, model, age_below18) |> 
+      summarise(mean = mean(x), .groups = "drop_last") |> 
+      pivot_wider(id_cols = c(type, group, rep_id, age_below18), 
+                  names_from = "model", values_from = "mean"),
+    ## total
+    draws_comp |> 
+      mutate(age_below18 = "All", group = "All") |> 
+      pivot_longer(cols = c(y_obs, value), names_to = "model", values_to = "x") |>
+      group_by(type, group, rep_id, model, age_below18) |> 
+      summarise(mean = mean(x), .groups = "drop_last") |> 
+      pivot_wider(id_cols = c(type, group, rep_id, age_below18), 
+                  names_from = "model", values_from = "mean"),
+    ## age groups
+    draws_comp |> 
+      mutate(group = p_age_group,
+             age_below18 = "All") |> 
+      pivot_longer(cols = c(y_obs, value), names_to = "model", values_to = "x") |>
+      group_by(type, group, rep_id, model, age_below18) |> 
+      summarise(mean = mean(x), .groups = "drop_last") |> 
+      pivot_wider(id_cols = c(type, group, rep_id, age_below18), 
+                  names_from = "model", values_from = "mean"),
+    ## ethnicity
+    draws_comp |> 
+      mutate(
+        ethnicity_rural = gsub("_", ", ", ethnicity_rural),
+        group = ethnicity_rural,
+        age_below18 = case_when(
+          age_below18 == "1" ~ "Below 18",
+          age_below18 == "0" ~ "18 and above"
+        ), age_below18 = factor(age_below18, levels = c("Below 18", "18 and above"))) |> 
+      pivot_longer(cols = c(y_obs, value), names_to = "model", values_to = "x") |>
+      group_by(type, group, rep_id, model, age_below18) |> 
+      summarise(mean = mean(x), .groups = "drop_last") |> 
+      pivot_wider(id_cols = c(type, group, rep_id, age_below18), 
+                  names_from = "model", values_from = "mean")
+  ) |> 
+    ungroup() |> 
+    mutate(age_below18 = case_when(
+      age_below18 == "All" ~ "Age groups",
+      age_below18 == "18 and above" ~ "Ethnicity - urban/rural: 18 and above",
+      age_below18 == "Below 18" ~ "Ethnicity - urban/rural: Below 18"
+    ),
+    age_below18 = factor(age_below18, levels = c(
+      "Age groups", "Ethnicity - urban/rural: Below 18", 
+      "Ethnicity - urban/rural: 18 and above"
+    ))) |> 
+    group_by(group, y_obs, type, age_below18) |> 
+    summarise(m = median(value), l = quantile(value, 0.025), 
+              h = quantile(value, 0.975), .groups = "drop_last") |> 
+    ggplot(aes(x = group, ymin = l, ymax = h, y = m, col = type)) + 
+    facet_wrap(age_below18 ~., scales = "free", ncol = 1) + 
+    geom_pointrange(position = position_dodge(width = 1)) +
+    geom_point(aes(y = y_obs, x = group), alpha = .3, col = NULL, width = 1) + 
+    ylim(0, NA) + ylab("Mean number of contacts") + 
+    theme_bw() +
+    theme(legend.position = "bottom", 
+          legend.title = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_text(size = 18),
+          strip.text = element_text(size = 18),
+          axis.text = element_text(size = 14),
+          axis.title.x = element_blank(),
+          legend.text = element_text(size = 14)) + 
+    scale_y_log10() + 
+    coord_cartesian(ylim = c(3, NA))
+  
+  ## Save figures
+  ggsave("figures/s_compar_dist.pdf", plot = p_dist, width = 18, height = 12)
+  ggsave("figures/s_compar_mean.pdf", plot = p_mean, width = 12, height = 8)
+}
