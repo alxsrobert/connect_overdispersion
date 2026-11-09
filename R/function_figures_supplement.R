@@ -1,5 +1,5 @@
-# Figures S4-S9: Fitting mixture models to distribution of contacts
-generate_figureS4S9 <- function(model_regression){
+# Figures: Fitting mixture models to distribution of contacts
+generate_figure_distageeth <- function(model_regression){
   set_theme(
     theme_bw() + 
       theme(legend.title = element_blank(), 
@@ -28,7 +28,7 @@ generate_figureS4S9 <- function(model_regression){
                                .default = contact))
   
   
-  for(n_contact in c(3)){
+  for(n_contact in c(4)){
     ## Create the transmitter groups, drawing the proportion of the population and 
     ## the number of contacts in each group.
     # The transmitter groups are specific to each level of age group and ethnicity
@@ -40,7 +40,7 @@ generate_figureS4S9 <- function(model_regression){
         plot_separated_distributions <- list()
         plot_full_distributions <- list()
         pdf(file = paste0(
-          "figures/s", 4 + (j-1)/2, "_", n_contact, "_transmitter", 1 + j %/% 2, ".pdf"),
+          "figures/s_", n_contact, "_transmitter", 1 + j %/% 2, ".pdf"),
           useDingbats = TRUE, width = 10, height = if(j == tot_age) 3.5 else 7)
       }
       dt_all_pop <- data.frame()
@@ -52,10 +52,13 @@ generate_figureS4S9 <- function(model_regression){
         
         # Fit the distribution of contact to n_group Poisson distributions
         flexfit_ij <- flexmix(contact ~ 1, 
-                              data = pop_ij, 
+                              data = pop_ij, #|> 
+                                # filter(contact < 100),
+                                # mutate(contact = case_when(contact > 100 ~ 100, 
+                                #                            .default = contact)),
                               k = n_contact, 
                               model = FLXglm(family = "poisson"),
-                              control = list(verb = 5, iter = 100, minprior = 0))
+                              control = list(iter = 100, minprior = 0))
         
         # Extract the proportion of the population in each group
         size_fit <- flexfit_ij@prior
@@ -90,6 +93,7 @@ generate_figureS4S9 <- function(model_regression){
                      gsub(pattern = "_Urban", replacement = ""))
         )
       }
+      
       ## Plot showing the different distributions for each ethnicity
       plot_separated_distributions[[as.numeric(j %% 2 == 0) + 1]] <-
         dt_all_pop |> 
@@ -100,18 +104,20 @@ generate_figureS4S9 <- function(model_regression){
                                  .default = group),
                group = factor(group, levels = c("Synthetic\npopulation", "Low", 
                                                 "Medium", "High", "Highest"))) |> 
-        filter(density > 0.0015) |> 
+        # filter(density > 0.0001) |> 
         ggplot() + 
         geom_area(
           aes(x = contact, y = density, fill = group), alpha = .3, position = "identity") + 
         scale_fill_manual(values = c("#34789a", "orange", "coral", "red", "brown")) + 
         scale_color_manual(values = c("#34789a", "orange", "coral", "red", "brown")) + 
         facet_grid(~ethnicity, scales = "free") +
+        scale_x_log10() +
         theme(legend.position = if(i != 5) "none" else "right", 
               strip.text = element_text(size = 14, hjust = 0)) + 
         ylab("Density") + xlab("Number of contacts") +
         ggtitle(paste0(unique(simulated_population$p_age_group)[j], " years old")) + 
-        theme(legend.position = if(i != 5) "none" else "right")
+        theme(legend.position = if(i != 5) "none" else "right",
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank())
       
       ## Plot showing the overall mixture distribution
       plot_full_distributions[[as.numeric(j %% 2 == 0) + 1]] <- 
@@ -124,14 +130,15 @@ generate_figureS4S9 <- function(model_regression){
                group = case_when(group == "Data" ~ "Synthetic\npopulation", 
                                  .default = group),
                group = factor(group, levels = c("Synthetic\npopulation", "Mixture"))) |> 
-        filter(density > 0.0015) |> 
+        # filter(density > 0.0001) |> 
         ggplot() + 
         geom_area(aes(x = contact, y = density, fill = group), alpha = .3, position = "identity") + 
         scale_fill_manual(values = c("#34789a", "#a95d62")) + 
         scale_color_manual(values = c("#34789a", "#a95d62")) + 
+        scale_x_log10() +
         facet_grid(~ethnicity, scales = "free") + ylab("Density") + xlab("Number of contacts") + 
-        theme(legend.position = if(i != 5) "none" else "right",
-              strip.text = element_blank())
+        theme(legend.position = if(i != 5) "none" else "right", strip.text = element_blank(),
+              panel.grid.major = element_blank(), panel.grid.minor = element_blank())
       
       if(j %% 2 == 0) {
         print(
