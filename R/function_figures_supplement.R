@@ -227,21 +227,21 @@ generate_figure_diffmethods <- function(file_regression){
   dev.off()
 }
 
-# Figure S14 age standardised attack rate
-generate_figureS14 <- function(y_result, cols_ethnicity){
+# Figure: age standardised attack rate
+generate_figure_arstandard <- function(y_result, cols_ethnicity){
   ## Clean outbreak simulations
   y_figure_age_standard <- 
     y_result |> 
-    filter(!grepl("0.035", type),  ## Remove beta runs
+    filter(!grepl("0.035", type), ## Remove beta runs,
            paste0(type, r0, iter) %in% ## Filter out outbreaks that immediately died out
              (y_result |> 
                 filter(!grepl("0.035", type)) |>  ## Remove beta runs
                 group_by(type, r0, iter) |> 
-                summarise(n_tot = sum(n), .groups = "drop") |> 
-                mutate(id = paste0(type, r0, iter)) |> 
-                filter(n_tot > 500) |> 
+                summarise(n_tot = sum(n), pop_tot = sum(n / proportion),
+                          .groups = "drop") |> 
+                mutate(prop_tot = n_tot / pop_tot, id = paste0(type, r0, iter)) |> 
+                filter(prop_tot > 0.02) |> 
                 pull(id)),
-           r0 > 0.035,
            type %in% c("England", "samecoef", "samepop","samepopsamemix") ## select scenarios of interest
     ) |> ## Rename scenarios
     mutate(scenario = factor(case_when(
@@ -253,11 +253,11 @@ generate_figureS14 <- function(y_result, cols_ethnicity){
         "Homogeneous mixing \nacross ethnicities &\nSame demographic variables",
       type == "England" ~ "Representative of\nEngland census",
       .default = type
-    ), levels = c("Representative of\nEngland census", 
-                  "Ethnicity-related regression\ncoefficients set to 1",
-                  "Homogeneous mixing\nbetween ethnicities",
+    ), levels = c("Homogeneous mixing \nacross ethnicities &\nSame demographic variables",
                   "Same distribution of\ndemographic variables\nacross ethnicities",
-                  "Homogeneous mixing \nacross ethnicities &\nSame demographic variables"
+                  "Ethnicity-related regression\ncoefficients set to 1",
+                  "Representative of\nEngland census", 
+                  "Homogeneous mixing\nbetween ethnicities"
     )))
   
   ## Compute age standardised attack rate, and relative to White ethnicity
@@ -269,21 +269,17 @@ generate_figureS14 <- function(y_result, cols_ethnicity){
         select(r0, scenario, iter, prop_ref),
       by = c("iter", "r0", "scenario")
     ) |>  ## Compute relative attack rate
+    filter(ethnicity != "White") |> 
     mutate(relative_ratio = proportion_standard / prop_ref) |> 
     group_by(ethnicity, r0, scenario) |> ## Compute median and 95% SI
     summarise(median_relative_ratio = median(relative_ratio),
               low_relative_ratio = quantile(relative_ratio, 0.025),
               high_relative_ratio = quantile(relative_ratio, 0.975),
-              median_proportion = median(proportion_standard),
-              low_proportion = quantile(proportion_standard, 0.25),
-              high_proportion = quantile(proportion_standard, 0.75), 
               .groups = "drop"
     ) |> 
-    pivot_longer(cols = c(median_relative_ratio, low_relative_ratio, high_relative_ratio, 
-                          median_proportion, low_proportion, high_proportion),
+    pivot_longer(cols = c(median_relative_ratio, low_relative_ratio, high_relative_ratio),
                  names_to = c(".value", "plot"), names_pattern = "([a-z]+)_(.*)") |> 
-    mutate(plot = case_when(plot == "proportion" ~ "Age-standardised\nattack rate",
-                            plot == "relative_ratio" ~ "Age-standardised\nrelative attack rate")) |> 
+    mutate(plot = case_when(plot == "relative_ratio" ~ "Age-standardised\nrelative attack rate")) |> 
     ggplot() + 
     geom_ribbon(aes(fill = ethnicity, x = r0, ymin = low, ymax = high, alpha = ethnicity)) + 
     scale_alpha_manual(values = c(.7, .5, .3, .5, 1)) +
@@ -292,19 +288,24 @@ generate_figureS14 <- function(y_result, cols_ethnicity){
     scale_color_manual(values = cols_ethnicity) + 
     geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
     facet_grid(plot ~ scenario, scales = "free", switch = "y") + xlab(bquote(R[0])) + theme_bw() + 
-    theme(axis.text = element_text(size=16), strip.text = element_text(size = 14),
-          strip.placement = "outside", strip.background.y = element_blank(),
-          axis.title.y = element_blank(), axis.title.x = element_text(size=14,face="bold"), 
-          legend.text = element_text(size = 12), legend.title = element_blank(),
-          strip.background = element_blank(), legend.position = "bottom")
+    theme(axis.text = element_text(size=16), 
+          strip.text.x = element_blank(),
+          strip.text.y = element_text(size = 14),
+          strip.placement = "outside",
+          axis.title.y = element_blank(), 
+          axis.title.x = element_text(size=14,face="bold"), 
+          legend.text = element_text(size = 12), 
+          legend.title = element_blank(),
+          strip.background = element_blank(), 
+          legend.position = "bottom")
   
-  pdf(file = "figures/s14_propinf_AS.pdf", useDingbats = TRUE, width = 12, height = 6)
+  pdf(file = "figures/s_propinf_AS.pdf", useDingbats = TRUE, width = 12, height = 4)
   print(figure_age_standard)
   dev.off()
 }
 
-# Figures S15-S16: Trajectories per group at R0 = 2 and R0 = 4
-generate_figureS15S16 <- function(cols_age, cols_ethnicity, cols_contact){
+# Figures: Trajectories per group at R0 = 2 and R0 = 4
+generate_figure_traj <- function(cols_age, cols_ethnicity, cols_contact){
   t_sim <- seq(0, 700) # Time  frame of the stochastic simulations
   r0 <- c(2,4)
   
@@ -312,13 +313,14 @@ generate_figureS15S16 <- function(cols_age, cols_ethnicity, cols_contact){
     # Generate a set of 50 simulations, with r0 = i, and 500 individuals per level 
     # of age/ethnicity in the synthetic population
     y_r0i <- run_outbreaks(t = t_sim, r0 = i, region = "England", n_particles = 50, 
-                           each = 500)
+                           each = 500, n_group = 4)
     
     ## Extract column numbers corresponding to each transmitter group
     groups_contact <- list(
       "Low" = grepv("group1", rownames(y_r0i$S)),
       "Medium" = grepv("group2", rownames(y_r0i$S)),
-      "High" = grepv("group3", rownames(y_r0i$S))
+      "High" = grepv("group3", rownames(y_r0i$S)),
+      "Highest" = grepv("group4", rownames(y_r0i$S))
     )
     ## Extract column numbers corresponding to each ethnicity
     groups_eth <- list(
@@ -338,9 +340,10 @@ generate_figureS15S16 <- function(cols_age, cols_ethnicity, cols_contact){
       c(grepv("age10g", rownames(y_r0i$S)), grepv("age11g", rownames(y_r0i$S)))
     )
     names(groups_age_aggreg) <- c("0-17", "18-29", "30-59", "60-93")
+    
     ## Generate total number of cases, attack rates, and trajectory per age, per
     ## ethnicity, and per contact group
-    pdf(file = paste0("figures/s", if(i == 2) 15 else 16, "_r0", i, ".pdf"), 
+    pdf(file = paste0("figures/s_r0", i, ".pdf"), 
         useDingbats = TRUE, width = 8, height = 7)
     par(bty = "l", mar = c(3, 4, 3, 0), oma = c(0,1,0,1))
     layout(matrix(c(1,3,5,2,4,6,7,8,9), 3, 3))
@@ -351,15 +354,15 @@ generate_figureS15S16 <- function(cols_age, cols_ethnicity, cols_contact){
                                   groups_eth = groups_eth, verbose = FALSE)
     
     figure_plot_simulations(
-      y = y_r0i, prop_cases_only = TRUE, t = 1:300, groups = groups_age_aggreg, 
-      with_lab = FALSE, cols = cols_age, ymax_prop_i = if(i == 2) 0.016 else 0.05, 
+      y = y_r0i, prop_cases_only = TRUE, t = 1:250, groups = groups_age_aggreg, 
+      with_lab = FALSE, cols = cols_age, ymax_prop_i = if(i == 2) 0.012 else 0.025, 
       verbose = FALSE)
     figure_plot_simulations(
-      y = y_r0i, prop_cases_only = TRUE, cols = cols_ethnicity, t = 1:300, with_lab = FALSE, 
-      groups = groups_eth, ymax_prop_i = if(i == 2) 0.016 else 0.05, verbose = FALSE)
+      y = y_r0i, prop_cases_only = TRUE, cols = cols_ethnicity, t = 1:250, with_lab = FALSE, 
+      groups = groups_eth, ymax_prop_i = if(i == 2) 0.012 else 0.025, verbose = FALSE)
     figure_plot_simulations(
-      y = y_r0i, cols = cols_contact, t = 1:300, groups = groups_contact, 
-      with_lab = FALSE, verbose = FALSE, ymax_prop_i = if(i == 2) 0.016 else 0.05, 
+      y = y_r0i, cols = cols_contact, t = 1:250, groups = groups_contact, 
+      with_lab = FALSE, verbose = FALSE, ymax_prop_i = if(i == 2) 0.035 else 0.06, 
       prop_cases_only = TRUE)
     title(xlab = "Time", outer = FALSE, line = 2, cex.lab = 1.5)
     dev.off()
@@ -566,8 +569,8 @@ generate_figureS18S20 <- function(cols_ethnicity){
   theme_set()
 }
 
-# Figures S21-S22: Proportion infected by city
-generate_figureS21S22 <- function(y_result, cols_ethnicity){
+# Figures: Proportion infected by city
+generate_figure_figcity <- function(y_result, cols_ethnicity){
   theme_set(
     theme_bw() + 
       theme(axis.text = element_text(size=16), strip.text = element_text(size = 14),
@@ -601,14 +604,14 @@ generate_figureS21S22 <- function(y_result, cols_ethnicity){
     ggplot(aes(fill = ethnicity, x = r0, ymin = low_95, ymax = high_95)) + 
     geom_ribbon(aes(alpha = ethnicity)) + 
     geom_line(aes(col = ethnicity, x = r0, y = median)) + 
-    scale_alpha_manual(values = c(.7, .5, .3, .5, 1)) +
+    scale_alpha_manual(values = c(.7, .5, .3, .5, .4)) +
     scale_fill_manual(values = cols_ethnicity) + 
     scale_color_manual(values = cols_ethnicity) + 
     facet_wrap(.~scenario) + xlab(bquote(R[0])) + 
     guides(fill = guide_legend(override.aes = list(alpha = .7)), col = "none") + 
-    ylab("Attack rate") + ylim(0.12, .92)
+    ylab("Attack rate") + ylim(0.05, .70)
   
-  pdf(file = "figures/s21_propinf_city.pdf", useDingbats = TRUE, width = 11, height = 5)
+  pdf(file = "figures/s_propinf_city.pdf", useDingbats = TRUE, width = 11, height = 5)
   print(p_prop)
   dev.off()
   ## Figure: Age standardised attack rate per ethnicity in each city
@@ -620,23 +623,29 @@ generate_figureS21S22 <- function(y_result, cols_ethnicity){
         select(r0, type, scenario, iter, prop_ref),
       by = c("iter", "r0", "scenario")
     )  |> 
+    filter(ethnicity != "White") |> 
     mutate(relative_ratio = proportion_standard / prop_ref) |> 
     group_by(ethnicity, r0, scenario) |> 
     summarise(median = median(relative_ratio),
+              low_50 = quantile(relative_ratio, 0.25),
+              high_50 = quantile(relative_ratio, 0.75), 
               low_95 = quantile(relative_ratio, 0.025),
-              high_95 = quantile(relative_ratio, 0.975), .groups = "drop"
+              high_95 = quantile(relative_ratio, 0.975), 
+              .groups = "drop"
     ) |> 
     ggplot() + 
+    geom_ribbon(aes(fill = ethnicity, x = r0, ymin = low_50, ymax = high_50, alpha = ethnicity)) + 
     geom_ribbon(aes(fill = ethnicity, x = r0, ymin = low_95, ymax = high_95, alpha = ethnicity)) + 
-    scale_alpha_manual(values = c(.7, .5, .3, .5, 1)) +
-    geom_line(aes(col = ethnicity, x = r0, y = median)) + 
-    scale_fill_manual(values = cols_ethnicity) + ylab("Age-standardised\nrelative attack rate") +
-    scale_color_manual(values = cols_ethnicity) + 
+    scale_alpha_manual(values = c(.4, .4, .5, .3)) +
+    # geom_line(aes(col = ethnicity, x = r0, y = median)) + 
+    scale_fill_manual(values = cols_ethnicity[-5]) +
+    ylab("Age-standardised\nrelative attack rate") +
+    scale_color_manual(values = cols_ethnicity[-5]) + 
     geom_line(aes(x = r0), y = 1, lty = 2, col = "Black") +
     facet_wrap(.~scenario) + xlab(bquote(R[0])) + 
-    theme(legend.position = "bottom")
+    theme(legend.position = "bottom", panel.grid.minor = element_blank())
   
-  pdf(file = "figures/s22_propinf_city_AS.pdf", useDingbats = TRUE, width = 11, height = 5)
+  pdf(file = "figures/s_propinf_city_AS.pdf", useDingbats = TRUE, width = 11, height = 5)
   print(p_prop_AS)
   dev.off()
 }
