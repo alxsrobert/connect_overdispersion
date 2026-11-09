@@ -1,28 +1,31 @@
 # RUN USING "R/script_generate_all_figures.R
 
 generate_all_figures <- function(
-    anon, file_regression, list_models, which_model_plot, model_regression,
-    contact_dist, y_result, y_result4, df_prop_r0_per_region,
-    cols_ethnicity, cols_age, cols_contact, cols_region
+    anon, file_regression, all_models, model_regression,
+    contact_dist, y_result, df_prop_r0_per_region, compar_model,
+    df_prop_r0_per_region_eth, cols_ethnicity, cols_age, cols_contact, cols_region
     ){
   
   ifelse(!dir.exists(file.path(getwd(), "figures")), 
          dir.create(file.path(getwd(), "figures"), showWarnings = FALSE), FALSE)
   
-  generate_figure2(list_models, which_model_plot)
-  generate_figure3(y_result, cols_ethnicity)
+  generate_figure2(model_regression, contact_dist, cols_ethnicity)
+  generate_figure3(y_result, cols_ethnicity[c(5,1,2,3,4)])
   generate_figure4(y_result, cols_ethnicity)
-  generate_figure5(df_prop_r0_per_region, cols_region)
+  generate_figure5(df_prop_r0_per_region, df_prop_r0_per_region_eth, 
+                   cols_region, standardised = FALSE)
   
-  generate_figureS4S9(model_regression)
-  generate_figureS11(file_regression, which_model_plot)
-  generate_figureS12(list_models)
-  generate_figureS13(contact_dist, cols_ethnicity)
-  generate_figureS14(y_result, cols_ethnicity)
-  generate_figureS15S16(cols_age, cols_ethnicity, cols_contact)
-  generate_figureS17(y_result4, cols_ethnicity)
-  generate_figureS18S20(cols_ethnicity)
-  generate_figureS21S22(y_result, cols_ethnicity)
+  generate_figure_distageeth(model_regression)
+  generate_figure_diffmethods(file_regression)
+  generate_figure_arstandard(y_result, cols_ethnicity)
+  generate_figure_traj(cols_age, cols_ethnicity, cols_contact)
+  generate_figure_democity(cols_ethnicity)
+  generate_figure_figcity(y_result, cols_ethnicity)
+  generate_figure_looic(compar_model)
+  generate_figure_coefall(model_regression)
+  generate_figure_coefhh(model_regression)
+  generate_table_param(model_regression)
+  generate_figure_ppc(all_models, model_regression, anon)
 }
 
   # Initialise figure
