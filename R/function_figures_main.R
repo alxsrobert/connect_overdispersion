@@ -25,15 +25,109 @@ generate_all_figures <- function(
   generate_figureS21S22(y_result, cols_ethnicity)
 }
 
-generate_figure2 <- function(list_models, which_model_plot){
   # Initialise figure
-  figure2 <- list()
+generate_figure2 <- function(model_regression, contact_dist, cols_ethnicity){
+  ## First panel: Ethnicity in <18yo
+  p1 <- show_regression_params(model_regression, FALSE, FALSE, "ethnicity_rural") + 
+    guides(col="none") + 
+    theme(strip.background = element_blank(),
+          panel.border = element_blank(), 
+          strip.text = element_text(size = 12))
+  ## Second panel: Ethnicity in >= 18yo
+  p2 <- show_regression_params(model_regression, TRUE, FALSE, "ethnicity_rural") + 
+    theme(strip.background = element_blank(),
+          panel.border = element_blank(), 
+          strip.text = element_text(size = 12))
   
-  theme_set()
-  ## Generate forest plot
-  figure2 <- figure_forest_plot(list_models, which_model_plot)
+  ## Rename covariate label (used as strip title in ggplot)
+  p1@data$covariate_label <- 
+    p1@layers$geom_rect$data$covariate_label <- 
+    p1@layers$geom_text$data$covariate_label <- "Under 18"
+  p2@data$covariate_label <- 
+    p2@layers$geom_rect$data$covariate_label <- 
+    p2@layers$geom_text$data$covariate_label <- "18 and over"
   
-  pdf(file = "figures/figure2.pdf", useDingbats = TRUE, width = 8, height = 9.5)
+  # Theme of the inset plots
+  theme_inset <- 
+    theme_minimal() + 
+    theme(plot.title = element_blank(),
+          axis.text.y = element_text(angle = 90, hjust = 0.5, vjust=1),
+          axis.ticks = element_line(linewidth = 0.25),
+          axis.line = element_line(colour = "black"),
+          panel.border = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(linewidth = 0.2),
+          plot.margin = margin(3, 3, 3, 3),
+          strip.text = element_blank(),
+          plot.background = element_rect(fill = "white", colour = NA)
+    )
+  
+  # Distribution of contacts in simulated populations (regression coefficients only)
+  p3_base <- figure_nb_contact_hist(
+    contact_dist |> 
+      filter(type == "at baseline") |> 
+      mutate(type = "Ethnicity-related regression coefficients only"),
+    c(-Inf, 1, 5, 10, 25, Inf), c("0-1", "2-5", "6-10", "11-25", "25+"),
+    cols_ethnicity) + 
+    ylim(0, 55) + 
+    theme_minimal() + 
+    theme(panel.grid.minor = element_blank(),
+          plot.margin = margin(1, 0, 1, 0),
+          strip.text = element_text(size = 12))
+  
+  # Distribution of contacts in simulated population (regression + pop)
+  p3_all <- figure_nb_contact_hist(
+    contact_dist |> 
+      filter(type == "ethnicity-stratified\n population") |> 
+      mutate(type = "Regression coefficients + Demographic structure"),
+    c(-Inf, 1, 5, 10, 25, Inf), c("0-1", "2-5", "6-10", "11-25", "25+"),  
+    cols_ethnicity) + 
+    ylim(0, 55) + 
+    theme_minimal() + 
+    labs(y = NULL) +
+    theme(panel.grid.minor = element_blank(),
+          strip.text = element_text(size = 12))
+  
+  
+  # Distribution of high contacts (regression coefficients only)
+  p4_base <- dist_simulated_pop(
+    contact_dist |> 
+      filter(type == "at baseline") |> 
+      mutate(type = "Ethnicity-related regression coefficients only"),
+    cols_ethnicity, high_cut = 200) + xlim(20, NA) + 
+    scale_y_log10(limits = c(0.003, 14)) + 
+    labs(y = "Proportion above (%)", x = "Number of contacts") +
+    guides(fill = "none", col = "none", alpha = "none") +  
+    theme_inset
+  
+  # Distribution of high contacts (regression + pop)
+  p4_all <- dist_simulated_pop(
+    contact_dist |> 
+      filter(type == "ethnicity-stratified\n population") |> 
+      mutate(type = "Regression coefficients + demographic structure"),
+    cols_ethnicity, high_cut = 200) + xlim(20, NA) + 
+    scale_y_log10(limits = c(0.003, 14)) + 
+    labs(y = "Proportion above (%)", x = "Number of contacts") +
+    guides(fill = "none", col = "none", alpha = "none") + 
+    theme_inset
+  
+  ## Add insets to histograms
+  p_left <- p3_base +
+    inset_element(p4_base, left = 0.40, bottom = 0.45, right = 0.98, top = .98,
+                  align_to = "panel", on_top = TRUE)
+  p_right <- p3_all +
+    inset_element(p4_all, left = 0.40, bottom = 0.45, right = 0.98, top = .98,
+                  align_to = "panel", on_top = TRUE)
+  
+  ## combine histograms
+  final_plot <- (p_left + p_right) + plot_layout(guides = "collect") & 
+    theme(legend.position = "right")
+  
+  ## Combine all plots
+  figure2 <- ((p1 + p2 + plot_layout(axes = "collect")) / 
+                (final_plot) + plot_layout(heights = c(.4, .6)))
+  
+  pdf(file = "figures/figure2.pdf", useDingbats = TRUE, width = 10, height = 8)
   print(figure2)
   dev.off()
 }
