@@ -35,10 +35,10 @@ df_tot_region <- data.frame()
 file_regression <- paste0(
   "results/final_regression", if(anoun) "_anoun", ".rds")
 file_output_cases <- paste0(
-  "results/outputmodel_byr0_region", if(anoun) "_anoun", 
+  "results/outputmodel_byr0_region4", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
-file_output_r0 <- paste0(
-  "prop_and_r0_clust_region", if(anoun) "_anoun", 
+file_output_r0_eth <- paste0(
+  "results/prop_and_r0_clust_region_eth", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 
 
@@ -256,7 +256,8 @@ for(run in seq_len(nb_run)){
 
 #### Check R0 by beta: by city ####
 
-all_betas <- seq(0.013, 0.08, 0.013)
+# all_betas <- seq(0.013, 0.08, 0.013)
+all_betas <- seq(0.01, 0.06, 0.01)
 
 for(run in seq_len(nb_run)){
   for(i in c("Birmingham", "Manchester", "York", "Liverpool", "Leicester", 
@@ -297,3 +298,44 @@ for(run in seq_len(nb_run)){
 }
 
 saveRDS(df_tot_region, file_output_r0)
+
+#### Check R0 by beta: by ethnicity and city ####
+
+# all_betas <- seq(0.013, 0.08, 0.013)
+all_betas <- c(0.015, 0.03)
+
+for(run in seq_len(nb_run)){
+  for(i in c("Birmingham", "Manchester", "York", "Liverpool", "Leicester", 
+             "London", "England"
+  )){
+    ## Create the transmitter groups from synthetic population
+    list_prop_coef_sim <- create_contact_group(
+      scenario_contact_group = "reference", n_group = n_group_sim, n_draws = 5, 
+      region = i, each = each_sim, file_in = file_regression, 
+      vec_ethnicity_rural = vec_ethnicity)
+    for(j in seq_along(all_betas)){
+      beta_j <- all_betas[j]
+      # Compute r0 from beta_j and list_prop_coef_sim
+      r0_ij <- run_outbreaks(
+        region = i, beta = beta_j, list_prop_coef = list_prop_coef_sim, 
+        return_only_r0 = TRUE)
+      
+      # Run the stochastic simulations and return the overall proportion of 
+      # infected in the population
+      prop_cases <- 
+        (run_and_aggreg_outbreak(
+          label = paste0(i, "_", all_betas[j]),
+          region = i, beta = beta_j, n_particles = n_particle_sim, 
+          list_prop_coef = list_prop_coef_sim
+        ) |>
+          mutate(iter = rep((run - 1) * n_particle_sim + 
+                              seq(1, n_particle_sim), length(vec_ethnicity)),
+                 r0 = r0_ij))
+      
+      df_tot_region <- rbind.data.frame(df_tot_region, prop_cases)
+    }
+  }
+  saveRDS(df_tot_region, file_output_r0_eth)
+}
+
+
