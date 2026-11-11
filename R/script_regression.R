@@ -252,10 +252,12 @@ fit_mixnb_ov18[[7]] <-
 #### Save output ####
 
 saveRDS(list(bel18 = fit_mixnb_bel18, ov18 = fit_mixnb_ov18),
-        "results/all_regression_mix_nb.RDS")
+        paste0("results/all_regression_mix_nb", if(anonymised) "_anoun", ".RDS"))
+
 #### Compute model performance ####
 
 ## comparison model performance
-all_model <- readRDS("results/all_regression_mix_nb.RDS")
+all_model <- readRDS(
+  paste0("results/all_regression_mix_nb", if(anonymised) "_anoun", ".RDS"))
 
-compar_models(all_model)
+compar_models(all_model, anonymised)

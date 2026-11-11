@@ -1,4 +1,4 @@
-compar_models <- function(regression_models){
+compar_models <- function(regression_models, anoun){
   bel18 <- regression_models$bel18
   ov18  <- regression_models$ov18
   
@@ -16,8 +16,10 @@ compar_models <- function(regression_models){
   compar_models <- bind_rows(loo_bel18$summary, loo_ov18$summary)
   
   # Save complete objects and reporting tables.
-  saveRDS(list(bel18 = loo_bel18, ov18 = loo_ov18), "loo_results/full_loo_comparison.rds")
-  saveRDS(compar_models, "loo_results/model_comparison.rds")
+  saveRDS(list(bel18 = loo_bel18, ov18 = loo_ov18), 
+          paste0("loo_results/full_loo_comparison", if(anoun) "_anoun", ".rds"))
+  saveRDS(compar_models, 
+          "loo_results/model_comparison", if(anoun) "_anoun", ".rds")
   
 }
 
