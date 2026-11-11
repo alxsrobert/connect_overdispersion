@@ -15,11 +15,12 @@ for(i in seq_len(n_run)){
   ## Generate stochastic distribution of contacts in simulated populations
   prediction_pop <- rbind.data.frame(
     prediction_pop, 
-    # At a given level
+    # Only ethnicity-rural impacts the distribution
     create_contact_in_pop(model = model_sim, tot_pop_size = pop_size, 
                           n_draws = n_draws, which_type =  "at baseline", 
                           vec_ethnicity_rural = ethnicity, region = region_sim) |> 
       select(ethnicity_rural, contact, type) |> mutate(iter = i), 
+    # In a simulated population (age distribution from UK population data by ethnicity)
     create_contact_in_pop(model = model_sim, tot_pop_size = pop_size, n_draws = n_draws,  
                           which_type = "ethnicity-stratified\n population", 
                           vec_ethnicity_rural = ethnicity, region = region_sim) |>

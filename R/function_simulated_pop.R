@@ -108,6 +108,10 @@ create_contact_in_pop <- function(
         lapply(model$ov18$fit@sim$samples[[i]][-pars_ethnicity_ov18],
                function(X) return(X * 0))
     }
+    df_u18$ethnicity_rural <- 
+      rep(unique(df_u18$ethnicity_rural), length.out = nrow(df_u18))
+    df_ov18$ethnicity_rural <- 
+      rep(unique(df_ov18$ethnicity_rural), length.out = nrow(df_ov18))
   }
   
   df_indiv_with_contact <- 
