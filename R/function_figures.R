@@ -1115,21 +1115,22 @@ show_regression_params <- function(model, ov18, viz_mu1, which_cov = NULL,
 dist_simulated_pop <- function(prediction_pop, cols_ethnicity, high_cut = 100){
   p_ecdf_C <-
     prediction_pop |>
-    group_by(ethnicity_rural, type) |>
-    arrange(contact) |>
-    # Compute the proportion of individuals with at least X contacts for each value
-    # below high_cut
-    mutate(
-      n = n(),
-      surv_prob = (1 - (row_number() / n)) * 100   # P(contact > x) at each observed x
+    reframe(
+      threshold = 0:high_cut,
+      nb = vapply(
+        threshold,
+        function(k) sum(contact >= k),
+        integer(1)
+      ),
+      prop = nb / n() * 100,
+      .by = c(iter, ethnicity_rural, type)
     ) |>
-    filter(surv_prob > 0) |>              # drop the exact-zero tail point
-    ## Compute the median, and 95%SI across simulations
+    select(contact = threshold, iter, nb, prop, ethnicity_rural, type) |> 
     group_by(ethnicity_rural, type, contact) |>
     summarise(
-      med = median(surv_prob),
-      low = quantile(surv_prob, 0.025),
-      high = quantile(surv_prob, 0.975)
+      med = median(prop),
+      low = quantile(prop, 0.25),
+      high = quantile(prop, 0.75)
     ) |> 
     ungroup() |> 
     filter(type != "population") |> 
@@ -1140,11 +1141,11 @@ dist_simulated_pop <- function(prediction_pop, cols_ethnicity, high_cut = 100){
     ## Generate the figure
     ggplot(aes(x = contact, ymin = low, ymax = high,
                y = med, fill = ethnicity_rural, alpha = ethnicity_rural)) +
-    geom_line(aes(colour = ethnicity_rural), lwd = 1, alpha = 1) +
     geom_ribbon() +
+    geom_line(aes(colour = ethnicity_rural), lwd = .1, alpha = 1) +
     facet_grid( ~ type, scales = "free") +
     scale_y_log10() +
-    scale_alpha_manual(values = c(.3, .6, .3, .3, .5)) +
+    scale_alpha_manual(values = c(.7, .7, .7, .7, .7)) +
     scale_color_manual(values = cols_ethnicity) +
     scale_fill_manual(values = cols_ethnicity) +
     guides(fill = guide_legend(override.aes = list(alpha = .7)),
@@ -1157,8 +1158,7 @@ dist_simulated_pop <- function(prediction_pop, cols_ethnicity, high_cut = 100){
     theme_bw(base_size = 12) +
     theme(legend.position = "bottom",
           legend.title = element_blank(),
-          panel.grid.minor = element_blank())
-  
+          panel.grid.minor = element_blank())  
   
   return(p_ecdf_C)
 }
