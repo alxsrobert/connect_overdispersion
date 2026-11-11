@@ -98,7 +98,6 @@ generate_figure2 <- function(model_regression, contact_dist, cols_ethnicity){
       filter(type == "at baseline") |> 
       mutate(type = "Ethnicity-related regression coefficients only"),
     cols_ethnicity, high_cut = 200) + xlim(20, NA) + 
-    scale_y_log10(limits = c(0.003, 14)) + 
     scale_y_log10() + 
     coord_cartesian(ylim = c(0.003, 14)) + 
     labs(y = "Proportion above (%)", x = "Number of contacts") +
