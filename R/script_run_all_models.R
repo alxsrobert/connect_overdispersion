@@ -35,10 +35,13 @@ df_tot_region <- data.frame()
 file_regression <- paste0(
   "results/final_regression", if(anoun) "_anoun", ".rds")
 file_output_cases <- paste0(
-  "results/outputmodel_byr0_region4", if(anoun) "_anoun", 
+  "results/outputmodel_byr0_region_4", if(anoun) "_anoun", 
+  if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
+file_output_r0 <- paste0(
+  "results/prop_and_r0_clust_region_4", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 file_output_r0_eth <- paste0(
-  "results/prop_and_r0_clust_region_eth", if(anoun) "_anoun", 
+  "results/prop_and_r0_clust_region_eth_4", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 
 
