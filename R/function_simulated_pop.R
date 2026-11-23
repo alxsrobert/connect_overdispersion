@@ -58,7 +58,7 @@ create_contact_in_pop <- function(
   tot_draws_ov18 <- (summary_model_ov18$iter - summary_model_ov18$warmup) * 
     summary_model_ov18$chains
   
-  # Variables in your new data
+  # Variables in new data
   vars_in_newdata <- names(df_indiv)
   
   # Get all variables used in the model formula
@@ -351,7 +351,8 @@ create_pop <- function(
            id_indiv = seq_len(nrow(df_indiv))
     ) |> 
     # Widen according to highest qualification
-    pivot_wider(names_from = hiqual, values_from = flag, values_fill = 0
+    pivot_wider(names_from = hiqual, values_from = flag, values_fill = 0,
+                names_prefix = "hiqual_"
     ) |> 
     # Widen according to employ
     mutate(flag = 1) |> 
@@ -363,6 +364,5 @@ create_pop <- function(
     # Set 18-24 as the reference of p_age_group, and add individual id
     mutate(p_age_group = relevel(age, ref = "18-24"),
            id_indiv = row_number())
-  
   return(df_indiv)
 }
