@@ -384,11 +384,11 @@ generate_figure5 <- function(df_prop_r0_per_region, df_prop_r0_per_region_eth,
     group_by(type, beta) |> 
     ## Compute 95% SI and median
     summarise(med = median(r0), 
-              low_95 = quantile(r0, 0.25), 
-              hi_95 = quantile(r0, 0.75), 
+              low = quantile(r0, 0.25), 
+              hi = quantile(r0, 0.75), 
               .groups = "drop") |> 
     mutate(beta_jit = beta + rep(seq(-4.5e-4, 4.5e-4, 1.5e-4)[c(4, 2, 3, 1, 5, 6, 7)], each = 6)) |> 
-    ggplot(aes(x = beta, y = med, col = type, fill = type, ymin = low_95, ymax = hi_95)) + 
+    ggplot(aes(x = beta, y = med, col = type, fill = type, ymin = low, ymax = hi)) + 
     geom_point(aes(x = beta_jit)) + geom_line(aes(x = beta_jit), lty = 2) + 
     geom_ribbon(col = NA, alpha = 0.2) + 
     scale_color_manual(values = cols_region) + scale_fill_manual(values = cols_region) +
