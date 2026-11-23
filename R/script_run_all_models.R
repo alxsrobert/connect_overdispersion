@@ -30,6 +30,7 @@ vec_ethnicity <-
 
 y_result <- data.frame()
 df_tot_region <- data.frame()
+df_tot_region_eth <- data.frame()
 
 ## Define input and output files
 file_regression <- paste0(
@@ -335,10 +336,10 @@ for(run in seq_len(nb_run)){
                               seq(1, n_particle_sim), length(vec_ethnicity)),
                  r0 = r0_ij))
       
-      df_tot_region <- rbind.data.frame(df_tot_region, prop_cases)
+      df_tot_region_eth <- rbind.data.frame(df_tot_region_eth, prop_cases)
     }
   }
-  saveRDS(df_tot_region, file_output_r0_eth)
+  saveRDS(df_tot_region_eth, file_output_r0_eth)
 }
 
 
