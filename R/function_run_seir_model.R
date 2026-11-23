@@ -178,9 +178,11 @@ run_outbreaks <- function(
   prop <- list_prop_coef$prop
   coef <- list_prop_coef$coef
   
-  # Only select urban coeffients, and rename the rows
-  prop <- prop[grepl("Urban", rownames(prop)),]
-  coef <- coef[grepl("Urban", rownames(prop)),]
+  stopifnot(identical(rownames(prop), rownames(coef)))
+  
+  # Only select urban coefficients, and rename the rows
+  prop <- prop[grepl("Urban", rownames(coef)),]
+  coef <- coef[grepl("Urban", rownames(coef)),]
   rownames(prop) <- tolower(gsub("_Urban", "", rownames(prop)))
   rownames(coef) <- tolower(gsub("_Urban", "", rownames(coef)))
   
