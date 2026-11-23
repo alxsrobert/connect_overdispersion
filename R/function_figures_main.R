@@ -35,12 +35,15 @@ generate_figure2 <- function(model_regression, contact_dist, cols_ethnicity){
     guides(col="none") + 
     theme(strip.background = element_blank(),
           panel.border = element_blank(), 
-          strip.text = element_text(size = 12))
+          strip.text = element_text(size = 12),
+          plot.tag = element_text(face = "bold"),
+          plot.tag.location = "plot") + labs(tag = "     A") 
   ## Second panel: Ethnicity in >= 18yo
   p2 <- show_regression_params(model_regression, TRUE, FALSE, "ethnicity_rural") + 
     theme(strip.background = element_blank(),
           panel.border = element_blank(), 
-          strip.text = element_text(size = 12))
+          plot.tag = element_text(face = "bold"),
+          strip.text = element_text(size = 12)) + labs(tag = "B") 
   
   ## Rename covariate label (used as strip title in ggplot)
   p1@data$covariate_label <- 
@@ -76,7 +79,9 @@ generate_figure2 <- function(model_regression, contact_dist, cols_ethnicity){
     theme_minimal() + 
     theme(panel.grid.minor = element_blank(),
           plot.margin = margin(1, 0, 1, 0),
-          strip.text = element_text(size = 12))
+          plot.tag = element_text(face = "bold"),
+          strip.text = element_text(size = 12),
+          plot.tag.location = "plot") + labs(tag = "      C") 
   
   # Distribution of contacts in simulated population (regression + pop)
   p3_all <- figure_nb_contact_hist(
@@ -89,7 +94,8 @@ generate_figure2 <- function(model_regression, contact_dist, cols_ethnicity){
     theme_minimal() + 
     labs(y = NULL) +
     theme(panel.grid.minor = element_blank(),
-          strip.text = element_text(size = 12))
+          plot.tag = element_text(face = "bold"),
+          strip.text = element_text(size = 12)) + labs(tag = "D") 
   
   
   # Distribution of high contacts (regression coefficients only)
@@ -387,10 +393,11 @@ generate_figure5 <- function(df_prop_r0_per_region, df_prop_r0_per_region_eth,
     geom_ribbon(col = NA, alpha = 0.2) + 
     scale_color_manual(values = cols_region) + scale_fill_manual(values = cols_region) +
     guides(colour = guide_legend(nrow = 2)) + xlab("\u03B2") + ylab(bquote(R[0])) +
-    theme(legend.byrow = TRUE)
+    theme(legend.byrow = TRUE) + 
+    labs(tag = "A") 
   
   
-  ## Panel B: attack rate by ethnicity and city
+  ## Panel C: attack rate by ethnicity and city
   figure5[[2]] <- 
     (df_prop_r0_per_region_eth |> 
        filter(beta == 0.015,
@@ -417,7 +424,8 @@ generate_figure5 <- function(df_prop_r0_per_region, df_prop_r0_per_region_eth,
        xlab(if(standardised) "Attack rate (standardised)" else "Attack rate") +
        theme(panel.grid = element_blank(),
              strip.background.y = element_blank(),
-             strip.text.y = element_blank())
+             strip.text.y = element_blank()) + 
+       labs(tag = "C") 
     ) + 
     (df_prop_r0_per_region_eth |> 
        filter(beta == 0.03,
@@ -449,7 +457,7 @@ generate_figure5 <- function(df_prop_r0_per_region, df_prop_r0_per_region_eth,
     theme(legend.position = "none")
   
   
-  ## Panel C: proportion change in R0 per beta
+  ## Panel B: proportion change in R0 per beta
   figure5[[3]] <- 
     df_prop_r0_per_region |> 
     ## Divide r0 by the value observed in England
@@ -477,7 +485,8 @@ generate_figure5 <- function(df_prop_r0_per_region, df_prop_r0_per_region_eth,
     labs(x = "", 
          y = expression(atop(
            "Proportion change in " ~ R[0]
-         ))
+         )),
+         tag = "B"
     )
   
   
