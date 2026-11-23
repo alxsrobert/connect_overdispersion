@@ -22,12 +22,10 @@
 #' @param scenario_contact_group Method used to generate the synthetic population and 
 #' the number of contact per individual. Can take one of the following values: 
 #' "same_mean": The coefficients of the regression analysis associated with the 
-#' impact of ethnicity on the mean number of contacts are set to 1, "same_od": 
-#' The coefficients of the regression analysis associated with the impact of 
-#' ethnicity on the dispersion are set to 1, "same_pop": The characteristics of
-#' the synthetic population are representative of the whole population 
-#' (instead of being ethnicity-specific), "same_all": combines same_mean and 
-#' same_pop and "reference". The default value is "reference". 
+#' impact of ethnicity on the mean number of contacts are set to 1, "same_pop": 
+#' The characteristics of the synthetic population are representative of the whole 
+#' population (instead of being ethnicity-specific), "same_all": combines same_mean 
+#' and same_pop and "reference". The default value is "reference". 
 #' @param pop_size_contact Overall size of the synthetic population used to simulate
 #' the number of contacts per individual, and compute the transmitter groups.
 #' @param each Alternative to pop_size_contact: define the size of the synthetic 
@@ -348,12 +346,10 @@ function_run_simulations <- function(
 #' @param scenario_contact_group Method used to generate the synthetic population and 
 #' the number of contact per individual. Can take one of the following values: 
 #' "same_mean": The coefficients of the regression analysis associated with the 
-#' impact of ethnicity on the mean number of contacts are set to 1, "same_od": 
-#' The coefficients of the regression analysis associated with the impact of 
-#' ethnicity on the dispersion are set to 1, "same_pop": The characteristics of
-#' the synthetic population are representative of the whole population 
-#' (instead of being ethnicity-specific), "same_all": combines same_mean and 
-#' same_pop and "reference". The default value is "reference". 
+#' impact of ethnicity on the mean number of contacts are set to 1, "same_pop": 
+#' The characteristics of the synthetic population are representative of the whole 
+#' population (instead of being ethnicity-specific), "same_all": combines same_mean 
+#' and same_pop and "reference". The default value is "reference". 
 #' @param n_group Number of transmitter groups (by default 3: low / medium / high)
 #' @param n_draws Number of draws from the regression results used to simulate the number of contacts
 #' @param file_in Path to the regression output file.
@@ -381,8 +377,8 @@ create_contact_group <- function(
     scenario_contact_group, n_group, n_draws, file_in,
     vec_ethnicity_rural, region, tot_pop_size = NULL, each = NULL, seed = NULL){
   # CHECK scenario_contact_group is among the possible values
-  if(!scenario_contact_group %in% c("same_mean", "same_od", "same_pop", "same_all", "reference"))
-    stop("scenario_contact_group must be one of `same_mean`, `same_od`, `same_pop`, 
+  if(!scenario_contact_group %in% c("same_mean", "same_pop", "same_all", "reference"))
+    stop("scenario_contact_group must be one of `same_mean`, `same_pop`, 
     `same_all` or `reference`")
   
   # Import the regression model
@@ -409,7 +405,6 @@ create_contact_group <- function(
                function(X) return(X * 0))
     }
   }
-  
   ## Generate a synthetic population, with the number of contact per individual
   ## drawn using the regression coefficients.
   # If scenario_contact_group == "same_pop", the demographics characteristics of
