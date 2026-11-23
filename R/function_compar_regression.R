@@ -32,12 +32,6 @@ compare_loo_models <- function(fits, age_group, model_labels = NULL, k_threshold
   # Check the observed outcome vectors. 
   responses <- lapply(fits, function(fit) fit$data$tot_contact)
   
-  same_response <- vapply(responses,
-                          function(y) isTRUE(all.equal(
-                            y, responses[[1]],
-                            check.attributes = FALSE
-                          )),logical(1))
-  
   loo_objects <- vector("list", length(fits))
   names(loo_objects) <- model_labels
   
