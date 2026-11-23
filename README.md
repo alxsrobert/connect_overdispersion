@@ -48,7 +48,7 @@ The following R packages are required to run the code:
 and can be installed in R by running:
 
 ```R
-install.packages("rio", "tidyverse", "broom.mixed", "brms", "flexmix", "grid", "ggridges", "patchwork", "ggpmisc")
+install.packages(c("rio", "tidyverse", "broom.mixed", "brms", "flexmix", "grid", "ggridges", "patchwork", "ggpmisc"))
 install.packages(c("odin2", "dust2"), repos = c("https://mrc-ide.r-universe.dev", "https://cloud.r-project.org"))
 ```
 
