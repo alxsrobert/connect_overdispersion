@@ -3,6 +3,7 @@ import_and_clean <- function(anonymous = TRUE){
   if(anonymous) {
     part_reg <- readRDS("data/participants_anonymous.RDS")
   } else {
+    stop("Confidential-data import is not implemented in the public workflow.")
   }
   
   # Risk of co linearity between p_age_group and p_employ as the employment of 
@@ -42,7 +43,6 @@ import_and_clean <- function(anonymous = TRUE){
     mutate(
       subethnicity_rural = case_when(
         age_below18 == 1 ~ ethnicity_rural,
-        p_urban_rural == "Rural" ~ ethnicity_rural,
         p_ethnicity2 == "Gypsy or Irish Traveller" ~ "White Other",
         p_ethnicity2 == "Other" ~ "White Other",
         p_ethnicity2 == "Any other mixed / multiple ethnic background" ~ "Mixed Other",
