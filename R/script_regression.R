@@ -261,3 +261,5 @@ all_model <- readRDS(
   paste0("results/all_regression_mix_nb", if(anonymised) "_anoun", ".RDS"))
 
 compar_models(all_model, anonymised)
+saveRDS(list(bel18 = fit_mixnb_bel18[[1]], ov18 = fit_mixnb_ov18[[4]]),
+        paste0("results/final_regression", if(anonymised) "_anoun", ".RDS"))

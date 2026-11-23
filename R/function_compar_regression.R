@@ -19,7 +19,7 @@ compar_models <- function(regression_models, anoun){
   saveRDS(list(bel18 = loo_bel18, ov18 = loo_ov18), 
           paste0("loo_results/full_loo_comparison", if(anoun) "_anoun", ".rds"))
   saveRDS(compar_models, 
-          "loo_results/model_comparison", if(anoun) "_anoun", ".rds")
+          paste0("loo_results/model_comparison", if(anoun) "_anoun", ".rds"))
   
 }
 
