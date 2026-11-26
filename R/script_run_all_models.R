@@ -36,13 +36,13 @@ df_tot_region_eth <- data.frame()
 file_regression <- paste0(
   "results/final_regression", if(anoun) "_anoun", ".rds")
 file_output_cases <- paste0(
-  "results/outputmodel_byr0_region_4", if(anoun) "_anoun", 
+  "results/outputmodel_byr0_region", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 file_output_r0 <- paste0(
-  "results/prop_and_r0_clust_region_4", if(anoun) "_anoun", 
+  "results/prop_and_r0_clust_region", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 file_output_r0_eth <- paste0(
-  "results/prop_and_r0_clust_region_eth_4", if(anoun) "_anoun", 
+  "results/prop_and_r0_clust_region_eth", if(anoun) "_anoun", 
   if(n_group_sim != 3) paste0("_", n_group_sim), ".RDS")
 
 
@@ -150,108 +150,6 @@ for(run in seq_len(nb_run)){
         )
         gc()
       }
-    }
-    if(i == "England"){
-      ## Add run with beta == 0.0335 (figure 3)
-      ## Use list_prop_coef_sim to generate n_particle outbreaks at different
-      ## values of R0
-      t_sim <- seq(0, 365)
-      
-      y_i <- run_and_aggreg_outbreak(
-        label = paste0("England", "_", 0.0335), region = "England", beta = 0.0335, 
-        n_particles = n_particle_sim, t = t_sim, list_prop_coef = list_prop_coef_sim
-      ) |>
-        mutate(iter = rep((run - 1) * n_particle_sim + 
-                            seq(1, n_particle_sim), length(vec_ethnicity)),
-               tot_pop = n / proportion) |> 
-        group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop), 
-                  proportion_standard = 0, 
-                  n = sum(n), ethnicity = "All", 
-                  .groups = "drop")
-      
-      ## Add the number and proportion of infected by ethnicity to the summary
-      ## data frame
-      y_result <- rbind.data.frame(y_result, y_i)
-      
-      ## generate simulations to analyse the impact of changing demographic characteristics
-      # Samemix: set the per capita matrix by ethnicity as constant.
-      y_samemix <- run_and_aggreg_outbreak(
-        label = paste0("samemix", "_", 0.0335), list_prop_coef = list_prop_coef_sim,
-        region = "England", n_particles = n_particle_sim, t = t_sim,
-        beta = 0.0335, all_eth = TRUE) |>
-        mutate(iter = rep((run - 1) * n_particle_sim + 
-                            seq(1, n_particle_sim), length(vec_ethnicity)),
-               tot_pop = n / proportion) |> 
-        group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop), 
-                  proportion_standard = 0, 
-                  n = sum(n), ethnicity = "All", 
-                  .groups = "drop")
-      # Samecoef: set the ethnicity-related regression coefficients to 1
-      y_samecoef <- run_and_aggreg_outbreak(
-        label = paste0("samecoef", "_", 0.0335), 
-        list_prop_coef = list_prop_coef_sim_same_mean, region = "England", 
-        n_particles = n_particle_sim, t = t_sim, beta = 0.0335) |>
-        mutate(iter = rep((run - 1) * n_particle_sim + 
-                            seq(1, n_particle_sim), length(vec_ethnicity)),
-               tot_pop = n / proportion) |> 
-        group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop),
-                  proportion_standard = 0, 
-                  n = sum(n), ethnicity = "All", 
-                  .groups = "drop")
-      # samepop: all ethnicities have the same age distribution
-      y_samepop <- run_and_aggreg_outbreak(
-        label = paste0("samepop", "_", 0.0335), list_prop_coef = list_prop_coef_sim_same_pop, 
-        region = "England", n_particles = n_particle_sim, t = t_sim, 
-        beta = 0.0335, same_age_distribution = TRUE) |>
-        mutate(iter = rep((run - 1) * n_particle_sim + 
-                            seq(1, n_particle_sim), length(vec_ethnicity)),
-               tot_pop = n / proportion) |> 
-        group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop),
-                  proportion_standard = 0, 
-                  n = sum(n), ethnicity = "All", 
-                  .groups = "drop")
-      # samepopsamemix: all ethnicities have the same age distribution and
-      # set the per capita matrix by ethnicity as constant.
-      y_samepopsamemix <- run_and_aggreg_outbreak(
-        label = paste0("samepopsamemix", "_", 0.0335), 
-        list_prop_coef = list_prop_coef_sim_same_pop, region = "England", 
-        n_particles = n_particle_sim, t = t_sim, beta = 0.0335, all_eth = TRUE,
-        same_age_distribution = TRUE) |>
-        mutate(iter = rep((run - 1) * n_particle_sim + 
-                            seq(1, n_particle_sim), length(vec_ethnicity)),
-               tot_pop = n / proportion) |> 
-        group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop), 
-                  proportion_standard = 0, 
-                  n = sum(n), ethnicity = "All",
-                  .groups = "drop")
-      # samepopsamemixsamecoef: all ethnicities have the same age distribution,
-      # set the per capita matrix by ethnicity as constant, and set the coef and 
-      # prop matrix from list_prop_coef_sim to be the same of all ethnicities.
-      y_samepopsamemixsamecoef <- run_and_aggreg_outbreak(
-        label = paste0("samepopsamemixsamecoef", "_", 0.0335),
-        list_prop_coef = list_prop_coef_sim_same_all,
-        region = "England", n_particles = n_particle_sim, t = t_sim,
-        beta = 0.0335, same_age_distribution = TRUE, all_eth = TRUE) |>
-        mutate(iter = rep((run - 1) * n_particle_sim + 
-                            seq(1, n_particle_sim), length(vec_ethnicity)),
-               tot_pop = n / proportion) |> 
-        group_by(iter, type) |> 
-        summarise(proportion = sum(n) / sum(tot_pop), 
-                  proportion_standard = 0, 
-                  n = sum(n), ethnicity = "All"
-                  , .groups = "drop")
-      
-      ## Add the number and proportion of infected by ethnicity to the summary
-      ## data frame
-      y_result <- rbind.data.frame(
-        y_result, y_samemix, y_samecoef, y_samepop, y_samepopsamemix, 
-        y_samepopsamemixsamecoef
-      )
     }
   }
   ## Save y_result
