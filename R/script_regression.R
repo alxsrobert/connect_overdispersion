@@ -10,10 +10,12 @@ fit_mixnb_bel18 <- fit_mixnb_ov18 <- list()
 
 ## Define priors
 bprior_bel18_mix_hnb <- c(
-  prior_string("normal(-5,1)", class = "hu1"),
-  prior_string("normal(-5,1)", class = "hu2"),
-  prior_string("uniform(-2,2)", dpar  = "mu2", lb = -2, ub = 2),
-  prior_string("uniform(-2,2)", dpar  = "theta2", lb = -2, ub = 2),
+  prior_string("normal(-5,1)", class = "Intercept", dpar = "hu1"),
+  prior_string("normal(-5,1)", class = "Intercept", dpar = "hu2"),
+  prior_string("uniform(-3,3)", dpar  = "mu2", lb = -3, ub = 3),
+  prior_string("uniform(-3,3)", dpar  = "theta2", lb = -3, ub = 3),
+  prior_string("normal(0,0.8)", class = "b", coef = "p_genderOther", dpar = "mu2"),
+  prior_string("normal(0,0.8)", class = "b", coef = "p_genderOther", dpar = "theta2"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralOther_Urban", dpar = "mu2"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralOther_Urban", dpar = "theta2"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralNonWhite_Rural", dpar = "mu2"),
@@ -21,17 +23,31 @@ bprior_bel18_mix_hnb <- c(
 )
 
 bprior_bel18_single <- c(
-  prior_string("normal(-5,1)", class = "hu"),
-  prior_string("uniform(-2,2)", dpar = "shape", lb = -2, ub = 2),
+  prior_string("normal(-5,1)", class = "Intercept", dpar = "hu"),
+  prior_string("uniform(-3,3)", dpar = "shape", lb = -3, ub = 3),
+  prior_string("normal(0,0.8)", class = "b", coef = "p_genderOther"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralOther_Urban"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralOther_Urban", dpar = "shape"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralNonWhite_Rural"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralNonWhite_Rural", dpar = "shape")
 )
 
+bprior_bel18_mix_reduced <- c(
+  prior_string("normal(-5,1)", class = "Intercept", dpar = "hu1"),
+  prior_string("normal(-5,1)", class = "Intercept", dpar = "hu2"),
+  prior_string("uniform(-3,3)", dpar  = "mu2", lb = -3, ub = 3),
+  prior_string("uniform(-3,3)", dpar  = "theta2", lb = -3, ub = 3),
+  prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralOther_Urban", dpar = "mu2"),
+  prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralOther_Urban", dpar = "theta2"),
+  prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralNonWhite_Rural", dpar = "mu2"),
+  prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralNonWhite_Rural", dpar = "theta2")
+)
+
 bprior_bel18_mixnb <- c(
-  prior_string("uniform(-2,2)", dpar  = "mu2", lb = -2, ub = 2),
-  prior_string("uniform(-2,2)", dpar  = "theta2", lb = -2, ub = 2),
+  prior_string("uniform(-3,3)", dpar  = "mu2", lb = -3, ub = 3),
+  prior_string("uniform(-3,3)", dpar  = "theta2", lb = -3, ub = 3),
+  prior_string("normal(0,0.8)", class = "b", coef = "p_genderOther", dpar = "mu2"),
+  prior_string("normal(0,0.8)", class = "b", coef = "p_genderOther", dpar = "theta2"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralOther_Urban", dpar = "mu2"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralOther_Urban", dpar = "theta2"),
   prior_string("normal(0,0.8)", class = "b", coef = "ethnicity_ruralNonWhite_Rural", dpar = "mu2"),
@@ -46,12 +62,14 @@ fit_mixnb_bel18[[1]] <-
       tot_contact ~ 1,
       mu1 ~ cat_household_members,
       mu2 ~ p_age_group + p_gender + day_week + ethnicity_rural + cat_household_members,
-      theta2 ~ p_age_group + p_gender + day_week + ethnicity_rural
+      theta2 ~ p_age_group + p_gender + day_week + ethnicity_rural,
+      hu1 ~ 1,
+      hu2 ~ 1
     ), 
     data = part_reg |> filter(age_below18 == 1, cat_household_members != "Alone") %>% 
       mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)), 
-    family = mixture(hurdle_negbinomial(), hurdle_negbinomial()), iter = 5000,
-    prior = bprior_bel18_mix_hnb
+    family = mixture(hurdle_negbinomial(), hurdle_negbinomial()), iter = 5000, 
+    prior = bprior_bel18_mix_hnb, control = list(adapt_delta = .95), seed = 27
   )
 
 ## full single HNB
@@ -59,11 +77,13 @@ fit_mixnb_bel18[[2]] <-
   brm(bf(
     tot_contact ~ p_age_group + p_gender + day_week + ethnicity_rural + 
       cat_household_members, 
-    shape ~ ethnicity_rural
+    shape ~ ethnicity_rural,
+    hu ~ 1
   ), 
   data = part_reg |> filter(age_below18 == 1, cat_household_members != "Alone") %>% 
     mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)), 
-  family = hurdle_negbinomial(), iter = 5000, prior = bprior_bel18_single)
+  family = hurdle_negbinomial(), iter = 5000, prior = bprior_bel18_single, seed = 27,
+  control = list(adapt_delta = .95))
 
 ## reduced mixture HNB
 fit_mixnb_bel18[[3]] <- 
@@ -72,12 +92,14 @@ fit_mixnb_bel18[[3]] <-
       tot_contact ~ 1,
       mu1 ~ 1,
       mu2 ~ ethnicity_rural + p_age_group,
-      theta2 ~ ethnicity_rural + p_age_group
+      theta2 ~ ethnicity_rural + p_age_group,
+      hu1 ~ 1,
+      hu2 ~ 1
     ), 
     data = part_reg |> filter(age_below18 == 1, cat_household_members != "Alone") %>% 
       mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)), 
-    family = mixture(hurdle_negbinomial(), hurdle_negbinomial()), seed = 123,
-    prior = bprior_bel18_mix_hnb, iter = 5000
+    family = mixture(hurdle_negbinomial(), hurdle_negbinomial()), seed = 27,
+    prior = bprior_bel18_mix_reduced, iter = 5000, control = list(adapt_delta = .95)
   )
 
 ## full Mixture NB
@@ -91,8 +113,8 @@ fit_mixnb_bel18[[4]] <-
     ), 
     data = part_reg |> filter(age_below18 == 1, cat_household_members != "Alone") %>% 
       mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)), 
-    family = mixture(negbinomial(), negbinomial()), iter = 5000,
-    prior = bprior_bel18_mixnb
+    family = mixture(negbinomial(), negbinomial()), iter = 5000, seed = 27,
+    prior = bprior_bel18_mixnb, control = list(adapt_delta = .95)
   )
 
 #### 18 and over ####
@@ -136,7 +158,8 @@ fit_mixnb_ov18[[1]] <- brm(
   ),
   data = part_reg |> filter(age_below18 == 0) %>% 
     mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)),
-  family = mixture(negbinomial(), negbinomial()), iter = 5000, prior = bprior_ov18_mnb
+  family = mixture(negbinomial(), negbinomial()), iter = 5000, prior = bprior_ov18_mnb, 
+  seed = 27, control = list(adapt_delta = .95)
 )
 
 # employ + detailed ethnic group, mixture model
@@ -153,8 +176,8 @@ fit_mixnb_ov18[[2]] <- brm(
   ),
   data = part_reg |> filter(age_below18 == 0) %>% 
     mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)),
-  family = mixture(negbinomial(), negbinomial()), iter = 5000, 
-  prior = bprior_ov18_detailed_ethnic_groups
+  family = mixture(negbinomial(), negbinomial()), iter = 5000, seed = 27,
+  prior = bprior_ov18_detailed_ethnic_groups, control = list(adapt_delta = .95)
 )
 
 
@@ -176,7 +199,8 @@ fit_mixnb_ov18[[3]] <- brm(
   ),
   data = part_reg |> filter(age_below18 == 0) %>% 
     mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)),
-  family = mixture(negbinomial(), negbinomial()), iter = 5000, prior = bprior_ov18_mnb
+  family = mixture(negbinomial(), negbinomial()), iter = 5000, prior = bprior_ov18_mnb, 
+  seed = 27, control = list(adapt_delta = .95)
 )
 
 # employ + hiqual + broad ethnic group, mixture model
@@ -197,7 +221,8 @@ fit_mixnb_ov18[[4]] <- brm(
   ),
   data = part_reg |> filter(age_below18 == 0) %>% 
     mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)),
-  family = mixture(negbinomial(), negbinomial()), iter = 5000, prior = bprior_ov18_mnb
+  family = mixture(negbinomial(), negbinomial()), iter = 5000, prior = bprior_ov18_mnb, 
+  seed = 27, control = list(adapt_delta = .95)
 )
 
 # employ + hiqual + detailed ethnicity, mixture model
@@ -219,7 +244,7 @@ fit_mixnb_ov18[[5]] <- brm(
   data = part_reg |> filter(age_below18 == 0) %>% 
     mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)),
   family = mixture(negbinomial(), negbinomial()), iter = 5000, 
-  prior = bprior_ov18_detailed_ethnic_groups
+  seed = 27, prior = bprior_ov18_detailed_ethnic_groups, control = list(adapt_delta = .95)
 )
 
 # Reduced model, mixture model
@@ -232,7 +257,8 @@ fit_mixnb_ov18[[6]] <- brm(
   ),
   data = part_reg |> filter(age_below18 == 0) %>% 
     mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)),
-  family = mixture(negbinomial(), negbinomial()), prior = bprior_ov18_mnb, iter = 5000
+  family = mixture(negbinomial(), negbinomial()), prior = bprior_ov18_mnb, iter = 5000,
+  seed = 27, control = list(adapt_delta = .95)
 )
 
 # Full model, single distribution
@@ -247,7 +273,8 @@ fit_mixnb_ov18[[7]] <-
   ), 
   data = part_reg |> filter(age_below18 == 0) %>% 
     mutate(tot_contact = case_when(tot_contact > 200 ~ 200, .default = tot_contact)),
-  family = negbinomial(), iter = 5000, prior = bprior_ov18_single)
+  family = negbinomial(), iter = 5000, prior = bprior_ov18_single,
+  seed = 27, control = list(adapt_delta = .95))
 
 #### Save output ####
 
