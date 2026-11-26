@@ -791,8 +791,8 @@ show_regression_params <- function(model, ov18, viz_mu1, which_cov = NULL,
     ) |> 
     ## Extract component
     mutate(
-      distpar = str_extract(param, "^(mu1|mu2|theta2)"),
-      remainder = str_remove(param, "^(mu1|mu2|theta2)_"),
+      distpar = str_extract(param, "^(mu1|mu2|theta2|hu1|hu2)"),
+      remainder = str_remove(param, "^(mu1|mu2|theta2|hu1|hu2)_"),
       covariate = case_when(
         ## Extract intercept
         remainder == "Intercept" ~ "Intercept",
